@@ -1,0 +1,242 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  FUNCIONARIO
+}
+
+enum Unidade {
+  UN
+  KG
+  L
+  SACO
+  CX
+  M
+}
+
+enum MetodoPagamento {
+  DINHEIRO
+  DEBITO
+  CREDITO
+  PIX
+}
+
+enum TipoDocumento {
+  NOTA
+  RECIBO
+}
+
+enum StatusDocumento {
+  EMITIDO
+  ERRO_PDF
+}
+
+enum StatusVenda {
+  CONCLUIDA
+  CANCELADA
+}
+
+enum TipoMovimentoEstoque {
+  ENTRADA_XML
+  ENTRADA_MANUAL
+  SAIDA_VENDA
+  AJUSTE
+  CANCELAMENTO_VENDA
+}
+
+model Usuario {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  nome      String
+  senhaHash String
+  role      Role     @default(FUNCIONARIO)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendas     Venda[]
+  movimentos MovimentoEstoque[]
+  documentos Documento[]
+
+  @@index([email])
+}
+
+model Categoria {
+  id        String    @id @default(cuid())
+  nome      String    @unique
+  produtos  Produto[]
+  createdAt DateTime  @default(now())
+}
+
+model Produto {
+  id          String     @id @default(cuid())
+  codigo      String     @unique
+  gtin        String?    @unique
+  nome        String
+  descricao   String?
+  categoriaId String?
+  categoria   Categoria? @relation(fields: [categoriaId], references: [id])
+
+  unidade    Unidade
+  precoCusto Decimal @db.Decimal(14, 4)
+  precoVenda Decimal @db.Decimal(14, 4)
+
+  // fracionamento
+  podeFracionar  Boolean  @default(false)
+  pesoUnidade    Decimal? @db.Decimal(14, 4)
+  unidadeFracao  Unidade?
+
+  // estoque
+  quantidade        Decimal @db.Decimal(14, 4) @default(0)
+  saldoFracionado   Decimal @db.Decimal(14, 4) @default(0)
+  quantidadeMinima  Decimal @db.Decimal(14, 4) @default(0)
+
+  ativo     Boolean   @default(true)
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  itensVenda      ItemVenda[]
+  movimentos      MovimentoEstoque[]
+  itensEntradaXml ItemEntradaXml[]
+
+  @@index([nome])
+  @@index([codigo])
+  @@index([gtin])
+}
+
+model Venda {
+  id         String      @id @default(cuid())
+  numero     Int         @unique
+  status     StatusVenda @default(CONCLUIDA)
+  subtotal   Decimal     @db.Decimal(14, 2)
+  desconto   Decimal     @db.Decimal(14, 2) @default(0)
+  total      Decimal     @db.Decimal(14, 2)
+  observacao String?
+  usuarioId  String
+  usuario    Usuario     @relation(fields: [usuarioId], references: [id])
+
+  itens      ItemVenda[]
+  pagamentos Pagamento[]
+  documento  Documento?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([usuarioId])
+}
+
+model ItemVenda {
+  id        String  @id @default(cuid())
+  vendaId   String
+  venda     Venda   @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id])
+
+  nomeProduto   String
+  unidadeVenda  Unidade
+  quantidade    Decimal @db.Decimal(14, 4)
+  precoUnitario Decimal @db.Decimal(14, 4)
+  desconto      Decimal @db.Decimal(14, 2) @default(0)
+  total         Decimal @db.Decimal(14, 2)
+
+  unidadesFechadasConsumidas Decimal @db.Decimal(14, 4) @default(0)
+
+  @@index([vendaId])
+  @@index([produtoId])
+}
+
+model Pagamento {
+  id      String          @id @default(cuid())
+  vendaId String
+  venda   Venda           @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  metodo  MetodoPagamento
+  valor   Decimal         @db.Decimal(14, 2)
+
+  @@index([vendaId])
+}
+
+model Documento {
+  id     String        @id @default(cuid())
+  tipo   TipoDocumento
+  numero Int
+  serie  String        @default("1")
+
+  vendaId String @unique
+  venda   Venda  @relation(fields: [vendaId], references: [id])
+
+  cpfCnpj     String?
+  nomeCliente String?
+
+  pdfPath     String?
+  statusDoc   StatusDocumento @default(EMITIDO)
+  erroInfo    String?
+  emitidoEm   DateTime  @default(now())
+  reemitidoEm DateTime?
+
+  emitidoPorId String
+  emitidoPor   Usuario @relation(fields: [emitidoPorId], references: [id])
+
+  @@unique([tipo, numero, serie])
+  @@index([emitidoEm])
+}
+
+model Counter {
+  chave String @id
+  valor Int    @default(0)
+}
+
+model MovimentoEstoque {
+  id          String               @id @default(cuid())
+  produtoId   String
+  produto     Produto              @relation(fields: [produtoId], references: [id])
+  tipo        TipoMovimentoEstoque
+  quantidade  Decimal              @db.Decimal(14, 4)
+  saldoApos   Decimal              @db.Decimal(14, 4)
+  precoCusto  Decimal?             @db.Decimal(14, 4)
+  referenciaId String?
+  observacao  String?
+  usuarioId   String
+  usuario     Usuario              @relation(fields: [usuarioId], references: [id])
+  createdAt   DateTime             @default(now())
+
+  @@index([produtoId, createdAt])
+}
+
+model EntradaXml {
+  id            String   @id @default(cuid())
+  chaveAcesso   String   @unique
+  numeroNf      String
+  cnpjEmitente  String
+  nomeEmitente  String
+  valorTotal    Decimal  @db.Decimal(14, 2)
+  xmlOriginal   String   @db.Text
+  importadoEm   DateTime @default(now())
+  importadoPorId String
+
+  itens ItemEntradaXml[]
+}
+
+model ItemEntradaXml {
+  id          String     @id @default(cuid())
+  entradaId   String
+  entrada     EntradaXml @relation(fields: [entradaId], references: [id], onDelete: Cascade)
+  produtoId   String?
+  produto     Produto?   @relation(fields: [produtoId], references: [id])
+  gtin        String?
+  descricao   String
+  quantidade  Decimal    @db.Decimal(14, 4)
+  valorUnitario Decimal  @db.Decimal(14, 4)
+  valorTotal  Decimal    @db.Decimal(14, 2)
+  criouProduto Boolean   @default(false)
+}
