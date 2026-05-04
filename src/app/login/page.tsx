@@ -29,17 +29,23 @@ export default function LoginPage() {
 
   async function onSubmit(data: FormData) {
     setErro("");
-    const result = await signIn("credentials", {
-      email: data.email,
-      password: data.password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
 
-    if (result?.error) {
-      setErro("E-mail ou senha incorretos");
-    } else {
-      router.push("/dashboard");
-      router.refresh();
+      if (result?.error) {
+        setErro("E-mail ou senha incorretos.");
+      } else if (result?.ok) {
+        router.push("/dashboard");
+        router.refresh();
+      } else {
+        setErro("Erro ao conectar. Tente novamente.");
+      }
+    } catch {
+      setErro("Erro inesperado. Verifique sua conexão e tente novamente.");
     }
   }
 
