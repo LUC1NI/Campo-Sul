@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -205,12 +206,12 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
           {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
           {isEdit ? "Salvar alterações" : "Cadastrar produto"}
         </button>
-        <a
+        <Link
           href="/estoque"
           className="flex items-center gap-2 border border-border text-foreground font-medium px-6 py-2.5 rounded-lg hover:bg-muted transition-colors"
         >
           Cancelar
-        </a>
+        </Link>
       </div>
     </form>
   );

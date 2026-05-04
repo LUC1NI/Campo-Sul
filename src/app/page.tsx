@@ -305,7 +305,7 @@ export default function HomePage() {
                 <img src="https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1200&q=80" className="absolute inset-0 w-full h-full object-cover opacity-80" alt="Campo"/>
                 <div className="absolute inset-0 bg-gradient-to-tr from-verde-mata/95 via-verde-mata/60 to-transparent"/>
                 <div className="absolute bottom-8 left-8 right-8 text-white">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-verde-musgo mb-3">// no coração do paraná</p>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-verde-musgo mb-3">{"// no coração do paraná"}</p>
                   <p className="font-fraunces text-3xl font-bold leading-tight">Aqui o campo<br/>tem voz e <em className="italic text-verde-musgo">tem rosto</em>.</p>
                 </div>
               </div>
@@ -328,13 +328,13 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-4 space-y-4 reveal">
               <div className="bg-white rounded-3xl p-7 border border-bege/80 border-glow">
-                <p className="font-mono text-[10px] text-terra uppercase tracking-[0.22em] mb-3">// endereço</p>
+                <p className="font-mono text-[10px] text-terra uppercase tracking-[0.22em] mb-3">{"// endereço"}</p>
                 <p className="font-fraunces text-2xl font-bold text-verde-mata leading-tight">Av. Fernandes Andrade, 1545</p>
                 <p className="text-foreground/55 text-sm mt-1">fundos · Quitandinha — PR</p>
                 <p className="text-foreground/40 text-xs mt-1 font-mono">CEP 83840-000</p>
               </div>
               <div className="bg-white rounded-3xl p-7 border border-bege/80">
-                <p className="font-mono text-[10px] text-terra uppercase tracking-[0.22em] mb-3">// horários</p>
+                <p className="font-mono text-[10px] text-terra uppercase tracking-[0.22em] mb-3">{"// horários"}</p>
                 <div className="space-y-2.5">
                   {[["Segunda a sexta","08h–18h"],["Sábado","08h–15h"]].map(([d,h]) => (
                     <div key={d} className="flex items-center justify-between">
@@ -352,7 +352,7 @@ export default function HomePage() {
                 className="block bg-verde-mata text-white rounded-3xl p-6 hover:bg-verde-mata-2 transition group">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-mono text-[10px] text-verde-musgo uppercase tracking-[0.22em] mb-2">// como chegar</p>
+                    <p className="font-mono text-[10px] text-verde-musgo uppercase tracking-[0.22em] mb-2">{"// como chegar"}</p>
                     <p className="font-fraunces text-xl font-bold">Abrir no Google Maps</p>
                   </div>
                   <span className="w-12 h-12 rounded-full bg-verde-musgo text-verde-mata flex items-center justify-center group-hover:rotate-45 transition-transform duration-500">
@@ -381,7 +381,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="absolute bottom-5 right-5 bg-verde-mata text-white rounded-2xl p-4 shadow-2xl hidden md:block">
-                  <p className="font-mono text-[10px] text-verde-musgo uppercase tracking-[0.22em] mb-1">// raio de atendimento</p>
+                  <p className="font-mono text-[10px] text-verde-musgo uppercase tracking-[0.22em] mb-1">{"// raio de atendimento"}</p>
                   <p className="font-fraunces text-3xl font-bold">80km</p>
                   <p className="text-white/55 text-xs">Quitandinha · Rio Negro · Lapa · Mafra</p>
                 </div>
@@ -435,7 +435,7 @@ export default function HomePage() {
               </p>
             </div>
             <div>
-              <p className="font-mono text-[10px] text-verde-musgo uppercase tracking-[0.22em] mb-4">// navegar</p>
+              <p className="font-mono text-[10px] text-verde-musgo uppercase tracking-[0.22em] mb-4">{"// navegar"}</p>
               <div className="space-y-2.5">
                 {[["#produtos","Produtos"],["#depoimentos","Depoimentos"],["#diferenciais","Por que nós?"],["#localizacao","Localização"]].map(([href,label]) => (
                   <a key={href} href={href} className="block text-white/55 hover:text-white text-sm">{label}</a>
@@ -443,7 +443,7 @@ export default function HomePage() {
               </div>
             </div>
             <div>
-              <p className="font-mono text-[10px] text-verde-musgo uppercase tracking-[0.22em] mb-4">// contato</p>
+              <p className="font-mono text-[10px] text-verde-musgo uppercase tracking-[0.22em] mb-4">{"// contato"}</p>
               <div className="space-y-2.5">
                 <a href="tel:41988819166" className="block text-white/55 hover:text-white text-sm">(41) 98881-9166</a>
                 <p className="text-white/55 text-sm">Av. Fernandes Andrade, 1545</p>
