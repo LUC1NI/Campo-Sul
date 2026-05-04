@@ -69,12 +69,14 @@ export async function GET(
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="nota-${doc.numero}.pdf"`,
+        // Documentos são imutáveis após emitidos: cache privado curto evita re-render quando o usuário recarrega
+        "Cache-Control": "private, max-age=3600, must-revalidate",
       },
     });
   } catch (err) {
     console.error("[PDF] Falha ao renderizar documento", id, err);
     return new NextResponse(
-      JSON.stringify({ erro: "Falha ao renderizar PDF", detalhe: err instanceof Error ? err.message : String(err) }),
+      JSON.stringify({ erro: "Falha ao renderizar PDF" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }

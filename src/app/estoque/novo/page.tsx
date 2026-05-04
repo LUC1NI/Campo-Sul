@@ -7,7 +7,7 @@ export default async function NovoProdutoPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-5">
+      <div className="max-w-6xl mx-auto space-y-5">
         <div>
           <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Novo Produto</h1>
           <p className="text-sm text-muted-foreground">Cadastrar produto no estoque</p>

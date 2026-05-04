@@ -219,8 +219,8 @@ export default async function EstoquePage({
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <Link href={`/estoque/${p.id}`} title="Editar produto" className="p-1.5 rounded-lg text-muted-foreground hover:text-verde-mata hover:bg-verde-mata/10 transition-colors">
-                              <Pencil className="w-4 h-4" />
+                            <Link href={`/estoque/${p.id}`} title="Editar produto" aria-label={`Editar ${p.nome}`} className="p-1.5 rounded-lg text-muted-foreground hover:text-verde-mata hover:bg-verde-mata/10 transition-colors">
+                              <Pencil className="w-4 h-4" aria-hidden />
                             </Link>
                             <BotaoDesativar id={p.id} nome={p.nome} />
                           </div>

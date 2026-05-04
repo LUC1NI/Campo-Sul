@@ -38,7 +38,7 @@ export default async function EditarProdutoPage({
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="max-w-6xl mx-auto space-y-5">
         <div>
           <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Editar Produto</h1>
           <p className="text-sm text-muted-foreground">{produto.nome}</p>

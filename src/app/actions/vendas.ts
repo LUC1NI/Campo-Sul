@@ -164,13 +164,19 @@ export async function finalizarVenda(input: FinalizarVendaInput) {
   return resultado;
 }
 
+const idSchema = z.string().cuid();
+const motivoSchema = z.string().min(1).max(500);
+
 export async function marcarErroPdf(documentoId: string, motivo: string) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const id = idSchema.parse(documentoId);
+  const motivoSan = motivoSchema.parse(motivo).slice(0, 500);
+
   await prisma.documento.update({
-    where: { id: documentoId },
-    data: { statusDoc: "ERRO_PDF", erroInfo: motivo },
+    where: { id },
+    data: { statusDoc: "ERRO_PDF", erroInfo: motivoSan },
   });
 }
 
@@ -178,8 +184,10 @@ export async function marcarPdfOk(documentoId: string) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const id = idSchema.parse(documentoId);
+
   await prisma.documento.update({
-    where: { id: documentoId },
+    where: { id },
     data: { statusDoc: "EMITIDO", erroInfo: null },
   });
   revalidatePath("/notas");
@@ -188,13 +196,18 @@ export async function marcarPdfOk(documentoId: string) {
 export async function emitirNotaFiscal(documentoId: string): Promise<string> {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (session.user.role !== "ADMIN") {
+    throw new Error("Apenas administradores podem emitir Nota Fiscal.");
+  }
+
+  const id = idSchema.parse(documentoId);
 
   await prisma.$transaction(async (tx) => {
-    const doc = await tx.documento.findUniqueOrThrow({ where: { id: documentoId } });
+    const doc = await tx.documento.findUniqueOrThrow({ where: { id } });
     if (doc.tipo === "NOTA") throw new Error("Este documento já é uma Nota Fiscal.");
     const novoNumero = await proximoNumero(tx as Parameters<typeof proximoNumero>[0], "NOTA:1");
     await tx.documento.update({
-      where: { id: documentoId },
+      where: { id },
       data: {
         tipo: "NOTA",
         numero: novoNumero,
@@ -207,7 +220,7 @@ export async function emitirNotaFiscal(documentoId: string): Promise<string> {
   }, { isolationLevel: "Serializable" });
 
   revalidatePath("/notas");
-  return documentoId;
+  return id;
 }
 
 export async function cancelarVenda(vendaId: string) {
@@ -215,17 +228,24 @@ export async function cancelarVenda(vendaId: string) {
   if (!session?.user) redirect("/login");
   if (session.user.role !== "ADMIN") throw new Error("Sem permissão");
 
+  const id = idSchema.parse(vendaId);
+
   await prisma.$transaction(
     async (tx) => {
       const venda = await tx.venda.findUnique({
-        where: { id: vendaId },
+        where: { id },
         include: { itens: true },
       });
       if (!venda) throw new Error("Venda não encontrada");
       if (venda.status === "CANCELADA") throw new Error("Venda já cancelada");
 
+      const produtoIds = Array.from(new Set(venda.itens.map((i) => i.produtoId)));
+      const produtos = await tx.produto.findMany({ where: { id: { in: produtoIds } } });
+      const produtoMap = new Map(produtos.map((p) => [p.id, p]));
+
       for (const item of venda.itens) {
-        const produto = await tx.produto.findUniqueOrThrow({ where: { id: item.produtoId } });
+        const produto = produtoMap.get(item.produtoId);
+        if (!produto) throw new Error(`Produto ${item.produtoId} não encontrado`);
 
         // Reverte as unidades fechadas consumidas
         const novaQtd = Number(produto.quantidade) + Number(item.unidadesFechadasConsumidas);
@@ -249,20 +269,27 @@ export async function cancelarVenda(vendaId: string) {
           },
         });
 
-        await tx.movimentoEstoque.create({
-          data: {
-            produtoId: item.produtoId,
-            tipo: "CANCELAMENTO_VENDA",
-            quantidade: String(item.quantidade),
-            saldoApos: novaQtd.toFixed(4),
-            referenciaId: vendaId,
-            observacao: `Cancelamento venda #${venda.numero}`,
-            usuarioId: session.user.id,
-          },
-        });
+        // atualiza o map para reverter múltiplos itens do mesmo produto
+        produto.quantidade = novaQtd.toFixed(4) as unknown as typeof produto.quantidade;
+        produto.saldoFracionado = novoSaldo.toFixed(4) as unknown as typeof produto.saldoFracionado;
       }
 
-      await tx.venda.update({ where: { id: vendaId }, data: { status: "CANCELADA" } });
+      await tx.movimentoEstoque.createMany({
+        data: venda.itens.map((item) => {
+          const p = produtoMap.get(item.produtoId)!;
+          return {
+            produtoId: item.produtoId,
+            tipo: "CANCELAMENTO_VENDA" as const,
+            quantidade: String(item.quantidade),
+            saldoApos: String(p.quantidade),
+            referenciaId: id,
+            observacao: `Cancelamento venda #${venda.numero}`,
+            usuarioId: session.user.id,
+          };
+        }),
+      });
+
+      await tx.venda.update({ where: { id }, data: { status: "CANCELADA" } });
     },
     { isolationLevel: "Serializable" }
   );
@@ -274,11 +301,14 @@ export async function buscarVendas(pagina = 1, porPagina = 20) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const paginaSan = Math.max(1, Math.floor(Number(pagina) || 1));
+  const porPaginaSan = Math.min(100, Math.max(1, Math.floor(Number(porPagina) || 20)));
+
   const [vendas, total] = await Promise.all([
     prisma.venda.findMany({
       orderBy: { createdAt: "desc" },
-      skip: (pagina - 1) * porPagina,
-      take: porPagina,
+      skip: (paginaSan - 1) * porPaginaSan,
+      take: porPaginaSan,
       include: {
         usuario: { select: { nome: true } },
         documento: { select: { id: true, tipo: true, numero: true, statusDoc: true, erroInfo: true } },
@@ -288,5 +318,5 @@ export async function buscarVendas(pagina = 1, porPagina = 20) {
     prisma.venda.count(),
   ]);
 
-  return { vendas, total, paginas: Math.ceil(total / porPagina) };
+  return { vendas, total, paginas: Math.ceil(total / porPaginaSan), pagina: paginaSan, porPagina: porPaginaSan };
 }

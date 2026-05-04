@@ -35,11 +35,15 @@ export function AjusteEstoque({ produtoId, nomeProduto, quantidadeAtual, unidade
     if (!temAlteracao) return;
     startTransition(async () => {
       try {
-        await ajustarEstoque(produtoId, {
+        const result = await ajustarEstoque(produtoId, {
           novaQuantidade: String(novaQtdNum),
           observacao: observacao.trim() || undefined,
         });
-        toast.success("Estoque ajustado com sucesso");
+        if (result.ok) {
+          toast.success("Estoque ajustado com sucesso");
+        } else {
+          toast.error(result.error);
+        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Erro ao ajustar estoque");
       }
@@ -47,10 +51,10 @@ export function AjusteEstoque({ produtoId, nomeProduto, quantidadeAtual, unidade
   }
 
   return (
-    <section className="bg-white rounded-xl border border-border p-6 space-y-4">
+    <section className="bg-white rounded-xl border border-border p-5 space-y-4">
       <div className="flex items-center gap-2">
         <PackageCheck className="w-4 h-4 text-verde-mata" />
-        <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+        <h2 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
           Ajuste de Estoque
         </h2>
       </div>

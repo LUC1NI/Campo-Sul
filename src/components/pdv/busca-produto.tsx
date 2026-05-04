@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, RefObject } from "react";
 import { useCarrinho } from "@/stores/carrinho-store";
-import { Search, Plus } from "lucide-react";
+import { Search } from "lucide-react";
 import { Unidade } from "@prisma/client";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useEffect } from "react";

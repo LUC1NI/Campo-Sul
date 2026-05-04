@@ -18,6 +18,14 @@ export function AppShell({ children, user, role }: AppShellProps) {
     setCollapsed(localStorage.getItem("sidebar-collapsed") === "true");
   }, []);
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && sidebarOpen) setSidebarOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [sidebarOpen]);
+
   function toggleCollapse() {
     setCollapsed((prev) => {
       localStorage.setItem("sidebar-collapsed", String(!prev));

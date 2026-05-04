@@ -2,7 +2,6 @@
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
-import { Unidade } from "@prisma/client";
 import { X } from "lucide-react";
 
 const UNIDADES = [

@@ -10,7 +10,7 @@ async function getDashboardData() {
   const inicioHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
   const fimHoje = new Date(inicioHoje.getTime() + 24 * 60 * 60 * 1000);
 
-  const [vendasHoje, totalHoje, ultimasVendas] = await Promise.all([
+  const [vendasHoje, totalHoje, ultimasVendas, produtosAtivos, estoqueBaixo] = await Promise.all([
     prisma.venda.count({
       where: { createdAt: { gte: inicioHoje, lt: fimHoje }, status: "CONCLUIDA" },
     }),
@@ -24,13 +24,19 @@ async function getDashboardData() {
       take: 5,
       include: { usuario: { select: { nome: true } } },
     }),
+    prisma.produto.count({ where: { ativo: true, deletedAt: null } }),
+    prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*)::int AS count FROM "Produto"
+      WHERE ativo = true AND "deletedAt" IS NULL
+        AND "quantidadeMinima" > 0 AND quantidade <= "quantidadeMinima"
+    `.then((r) => Number(r[0].count)),
   ]);
 
-  return { vendasHoje, totalHoje: totalHoje._sum.total ?? 0, ultimasVendas };
+  return { vendasHoje, totalHoje: totalHoje._sum.total ?? 0, ultimasVendas, produtosAtivos, estoqueBaixo };
 }
 
 export default async function DashboardPage() {
-  const { vendasHoje, totalHoje, ultimasVendas } = await getDashboardData();
+  const { vendasHoje, totalHoje, ultimasVendas, produtosAtivos, estoqueBaixo } = await getDashboardData();
 
   return (
     <AppLayout>
@@ -45,8 +51,8 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard titulo="Vendas hoje" valor={String(vendasHoje)} icon={ShoppingCart} cor="verde" />
           <StatCard titulo="Total hoje" valor={formatBRL(Number(totalHoje))} icon={TrendingUp} cor="terra" />
-          <StatCard titulo="Produtos ativos" valor="—" icon={Package} cor="neutro" />
-          <StatCard titulo="Estoque baixo" valor="—" icon={AlertTriangle} cor="alerta" />
+          <StatCard titulo="Produtos ativos" valor={String(produtosAtivos)} icon={Package} cor="neutro" />
+          <StatCard titulo="Estoque baixo" valor={String(estoqueBaixo)} icon={AlertTriangle} cor="alerta" />
         </div>
 
         <div className="bg-white rounded-xl border border-border">

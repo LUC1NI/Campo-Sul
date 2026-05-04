@@ -5,6 +5,16 @@ import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import { PdfLink } from "@/components/notas/pdf-link";
 
+function buildPages(current: number, total: number): (number | "...")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "...")[] = [1];
+  if (current > 3) pages.push("...");
+  for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) pages.push(p);
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+  return pages;
+}
+
 const METODO_LABEL: Record<string, string> = {
   DINHEIRO: "Dinheiro", DEBITO: "Débito", CREDITO: "Crédito", PIX: "PIX",
 };
@@ -91,20 +101,28 @@ export default async function HistoricoVendasPage({
         </div>
 
         {paginas > 1 && (
-          <div className="flex items-center justify-center gap-2">
-            {Array.from({ length: paginas }, (_, i) => i + 1).map((p) => (
-              <Link
-                key={p}
-                href={`/vendas/historico?pagina=${p}`}
-                className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm ${
-                  p === pagina
-                    ? "bg-verde-mata text-white"
-                    : "border border-border hover:bg-muted"
-                }`}
-              >
-                {p}
-              </Link>
-            ))}
+          <div className="flex items-center justify-center gap-1.5">
+            {pagina > 1 && (
+              <Link href={`/vendas/historico?pagina=${pagina - 1}`} className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted transition-colors">←</Link>
+            )}
+            {buildPages(pagina, paginas).map((p, i) =>
+              p === "..." ? (
+                <span key={`e-${i}`} className="px-2 text-muted-foreground text-sm">…</span>
+              ) : (
+                <Link
+                  key={p}
+                  href={`/vendas/historico?pagina=${p}`}
+                  className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors ${
+                    p === pagina ? "bg-verde-mata text-white" : "border border-border hover:bg-muted"
+                  }`}
+                >
+                  {p}
+                </Link>
+              )
+            )}
+            {pagina < paginas && (
+              <Link href={`/vendas/historico?pagina=${pagina + 1}`} className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted transition-colors">→</Link>
+            )}
           </div>
         )}
       </div>

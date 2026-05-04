@@ -15,8 +15,12 @@ export function BotaoReativar({ id, nome }: BotaoReativarProps) {
   function handleReativar() {
     startTransition(async () => {
       try {
-        await reativarProduto(id);
-        toast.success(`"${nome}" reativado`);
+        const result = await reativarProduto(id);
+        if (result.ok) {
+          toast.success(`"${nome}" reativado`);
+        } else {
+          toast.error(result.error);
+        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Erro ao reativar produto");
       }
@@ -27,6 +31,7 @@ export function BotaoReativar({ id, nome }: BotaoReativarProps) {
     <button
       onClick={handleReativar}
       disabled={isPending}
+      aria-label={isPending ? `Reativando ${nome}` : `Reativar ${nome}`}
       className="text-xs text-verde-mata hover:underline disabled:opacity-50"
     >
       {isPending ? "Reativando..." : "Reativar"}

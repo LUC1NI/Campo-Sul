@@ -22,11 +22,15 @@ async function getRelatorioHoje() {
       where: { venda: { createdAt: { gte: inicio, lt: fim }, status: "CONCLUIDA" } },
       _sum: { valor: true },
     }),
-    prisma.produto.findMany({
-      where: { ativo: true, deletedAt: null, quantidadeMinima: { gt: 0 } },
-      select: { id: true, nome: true, quantidade: true, quantidadeMinima: true, unidade: true },
-      orderBy: { nome: "asc" },
-    }).then((ps) => ps.filter((p) => Number(p.quantidade) <= Number(p.quantidadeMinima))),
+    prisma.$queryRaw<{ id: string; nome: string; quantidade: string; quantidadeMinima: string; unidade: string }[]>`
+      SELECT id, nome, quantidade::text, "quantidadeMinima"::text, unidade::text
+      FROM "Produto"
+      WHERE ativo = true AND "deletedAt" IS NULL
+        AND "quantidadeMinima" > 0
+        AND quantidade <= "quantidadeMinima"
+      ORDER BY nome ASC
+      LIMIT 50
+    `,
   ]);
 
   return { vendas, total: Number(totalAgg._sum.total ?? 0), porMetodo, produtosBaixos };

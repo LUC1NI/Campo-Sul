@@ -6,20 +6,60 @@ import { formatBRL, formatDataHora } from "@/lib/format";
 import { FileText, Receipt } from "lucide-react";
 import { PdfLink } from "@/components/notas/pdf-link";
 import { BotaoEmitirNF } from "@/components/notas/botao-emitir-nf";
+import Link from "next/link";
+import { TipoDocumento } from "@prisma/client";
 
-async function getNotas() {
-  return prisma.documento.findMany({
-    orderBy: { emitidoEm: "desc" },
-    take: 100,
-    include: {
-      venda: { select: { total: true, numero: true } },
-      emitidoPor: { select: { nome: true } },
-    },
-  });
+const POR_PAGINA = 30;
+
+async function getNotas({
+  q,
+  tipo,
+  pagina,
+}: {
+  q: string;
+  tipo: string;
+  pagina: number;
+}) {
+  const where = {
+    ...(tipo === "NOTA" || tipo === "RECIBO" ? { tipo: tipo as TipoDocumento } : {}),
+    ...(q
+      ? {
+          OR: [
+            { nomeCliente: { contains: q, mode: "insensitive" as const } },
+            { cpfCnpj: { contains: q } },
+          ],
+        }
+      : {}),
+  };
+
+  const [notas, total] = await Promise.all([
+    prisma.documento.findMany({
+      where,
+      orderBy: { emitidoEm: "desc" },
+      skip: (pagina - 1) * POR_PAGINA,
+      take: POR_PAGINA,
+      include: {
+        venda: { select: { total: true, numero: true } },
+        emitidoPor: { select: { nome: true } },
+      },
+    }),
+    prisma.documento.count({ where }),
+  ]);
+
+  return { notas, total, paginas: Math.ceil(total / POR_PAGINA) };
 }
 
-export default async function NotasPage() {
-  const notas = await getNotas();
+export default async function NotasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; tipo?: string; pagina?: string }>;
+}) {
+  const params = await searchParams;
+  const q = (params.q ?? "").trim().slice(0, 80);
+  const tipo = params.tipo ?? "";
+  const pagina = Math.max(1, Number(params.pagina) || 1);
+
+  const { notas, total, paginas } = await getNotas({ q, tipo, pagina });
   const comErro = notas.filter((n) => n.statusDoc === "ERRO_PDF").length;
 
   return (
@@ -28,7 +68,7 @@ export default async function NotasPage() {
         <div>
           <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Notas e Recibos</h1>
           <div className="flex items-center gap-3 mt-1">
-            <p className="text-sm text-muted-foreground">{notas.length} documentos emitidos</p>
+            <p className="text-sm text-muted-foreground">{total} documento{total !== 1 ? "s" : ""}</p>
             {comErro > 0 && (
               <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                 <FileText className="w-3 h-3" />
@@ -37,6 +77,33 @@ export default async function NotasPage() {
             )}
           </div>
         </div>
+
+        {/* Filtros */}
+        <form className="flex flex-wrap gap-2" method="GET">
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Buscar por cliente ou CPF/CNPJ..."
+            className="flex-1 min-w-[200px] max-w-sm px-3.5 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
+          />
+          <select
+            name="tipo"
+            defaultValue={tipo}
+            className="px-3 py-2 rounded-lg border border-border text-sm bg-background focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
+          >
+            <option value="">Todos os tipos</option>
+            <option value="NOTA">Nota Fiscal</option>
+            <option value="RECIBO">Recibo</option>
+          </select>
+          <button type="submit" className="px-4 py-2 bg-verde-mata text-white rounded-lg text-sm hover:bg-verde-claro transition-colors">
+            Buscar
+          </button>
+          {(q || tipo) && (
+            <Link href="/notas" className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
+              Limpar
+            </Link>
+          )}
+        </form>
 
         <div className="bg-white rounded-xl border border-border overflow-x-auto">
           <table className="w-full text-sm min-w-[600px]">
@@ -55,7 +122,7 @@ export default async function NotasPage() {
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
                     <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    Nenhum documento emitido ainda
+                    Nenhum documento encontrado
                   </td>
                 </tr>
               ) : (
@@ -106,7 +173,65 @@ export default async function NotasPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Paginação */}
+        {paginas > 1 && (
+          <Paginacao pagina={pagina} paginas={paginas} q={q} tipo={tipo} />
+        )}
       </div>
     </AppLayout>
   );
+}
+
+function Paginacao({ pagina, paginas, q, tipo }: { pagina: number; paginas: number; q: string; tipo: string }) {
+  function href(p: number) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (tipo) params.set("tipo", tipo);
+    if (p > 1) params.set("pagina", String(p));
+    const qs = params.toString();
+    return `/notas${qs ? `?${qs}` : ""}`;
+  }
+
+  const pages = buildPages(pagina, paginas);
+
+  return (
+    <div className="flex items-center justify-center gap-1.5">
+      {pagina > 1 && (
+        <Link href={href(pagina - 1)} className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted transition-colors">
+          ←
+        </Link>
+      )}
+      {pages.map((p, i) =>
+        p === "..." ? (
+          <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground text-sm">…</span>
+        ) : (
+          <Link
+            key={p}
+            href={href(p as number)}
+            className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors ${
+              p === pagina ? "bg-verde-mata text-white" : "border border-border hover:bg-muted"
+            }`}
+          >
+            {p}
+          </Link>
+        )
+      )}
+      {pagina < paginas && (
+        <Link href={href(pagina + 1)} className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted transition-colors">
+          →
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function buildPages(current: number, total: number): (number | "...")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "...")[] = [1];
+  if (current > 3) pages.push("...");
+  for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) pages.push(p);
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+  return pages;
 }

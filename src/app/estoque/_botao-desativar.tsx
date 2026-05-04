@@ -19,8 +19,12 @@ export function BotaoDesativar({ id, nome }: BotaoDesativarProps) {
     setAberto(false);
     startTransition(async () => {
       try {
-        await desativarProduto(id);
-        toast.success(`"${nome}" desativado`);
+        const result = await desativarProduto(id);
+        if (result.ok) {
+          toast.success(`"${nome}" desativado`);
+        } else {
+          toast.error(result.error);
+        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Erro ao desativar produto");
       }
@@ -33,9 +37,10 @@ export function BotaoDesativar({ id, nome }: BotaoDesativarProps) {
         onClick={() => setAberto(true)}
         disabled={isPending}
         title="Desativar produto"
+        aria-label="Desativar produto"
         className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
       >
-        <EyeOff className="w-4 h-4" />
+        <EyeOff className="w-4 h-4" aria-hidden />
       </button>
 
       <ConfirmDialog

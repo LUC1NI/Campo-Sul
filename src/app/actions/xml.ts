@@ -40,11 +40,20 @@ export interface XmlPreview {
   itens: ItemPreview[];
 }
 
+const MAX_XML_BYTES = 5 * 1024 * 1024; // 5 MB — NF-e raramente passa de 1 MB
+
 export async function parsearXml(
   xmlContent: string
 ): Promise<{ ok: true; data: XmlPreview } | { ok: false; erro: string }> {
   const session = await auth();
   if (!session?.user) redirect("/login");
+
+  if (typeof xmlContent !== "string" || xmlContent.length === 0) {
+    return { ok: false, erro: "XML vazio" };
+  }
+  if (Buffer.byteLength(xmlContent, "utf8") > MAX_XML_BYTES) {
+    return { ok: false, erro: "Arquivo XML muito grande (máx. 5 MB)" };
+  }
 
   try {
     const parsed = parseNfeXml(xmlContent);

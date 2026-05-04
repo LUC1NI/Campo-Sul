@@ -2,11 +2,14 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
+const MAX_QUERY_LEN = 80;
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
 
-  const q = req.nextUrl.searchParams.get("q") ?? "";
+  const raw = req.nextUrl.searchParams.get("q") ?? "";
+  const q = raw.trim().slice(0, MAX_QUERY_LEN);
   if (q.length < 1) return NextResponse.json([]);
 
   const produtos = await prisma.produto.findMany({
@@ -35,5 +38,7 @@ export async function GET(req: NextRequest) {
     orderBy: { nome: "asc" },
   });
 
-  return NextResponse.json(produtos);
+  return NextResponse.json(produtos, {
+    headers: { "Cache-Control": "private, no-store" },
+  });
 }
