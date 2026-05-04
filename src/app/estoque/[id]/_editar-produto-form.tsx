@@ -47,8 +47,13 @@ export function EditarProdutoForm({ produto, categorias, extraSection }: EditarP
 
   async function handleSubmit(data: ProdutoFormData) {
     try {
-      await atualizarProduto(produto.id, data);
-      router.push("/estoque");
+      const result = await atualizarProduto(produto.id, data);
+      if (result.ok) {
+        toast.success("Alterações salvas!");
+        router.push("/estoque");
+      } else {
+        toast.error(result.error);
+      }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar produto");
     }

@@ -6,6 +6,12 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Unidade } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+
+function normalizarNumero(v: string | null | undefined): string {
+  if (!v) return "";
+  return String(v).replace(",", ".").trim();
+}
 
 const produtoSchema = z.object({
   codigo: z.string().min(1, "Código obrigatório"),
@@ -14,14 +20,16 @@ const produtoSchema = z.object({
   descricao: z.string().optional().nullable(),
   categoriaId: z.string().optional().nullable(),
   unidade: z.nativeEnum(Unidade),
-  precoCusto: z.string().refine((v) => !isNaN(Number(v)) && Number(v) >= 0, "Valor inválido"),
-  precoVenda: z.string().refine((v) => !isNaN(Number(v)) && Number(v) > 0, "Valor inválido"),
+  precoCusto: z.string().refine((v) => !isNaN(Number(normalizarNumero(v))) && Number(normalizarNumero(v)) >= 0, "Valor inválido"),
+  precoVenda: z.string().refine((v) => !isNaN(Number(normalizarNumero(v))) && Number(normalizarNumero(v)) > 0, "Valor inválido"),
   podeFracionar: z.boolean().default(false),
   pesoUnidade: z.string().optional().nullable(),
   unidadeFracao: z.nativeEnum(Unidade).optional().nullable(),
-  quantidade: z.string().refine((v) => !isNaN(Number(v)) && Number(v) >= 0, "Valor inválido"),
-  quantidadeMinima: z.string().refine((v) => !isNaN(Number(v)) && Number(v) >= 0, "Valor inválido"),
+  quantidade: z.string().refine((v) => !isNaN(Number(normalizarNumero(v))) && Number(normalizarNumero(v)) >= 0, "Valor inválido"),
+  quantidadeMinima: z.string().refine((v) => !isNaN(Number(normalizarNumero(v))) && Number(normalizarNumero(v)) >= 0, "Valor inválido"),
 });
+
+export type ActionResult = { ok: true } | { ok: false; error: string };
 
 async function requireAuth() {
   const session = await auth();
@@ -29,58 +37,89 @@ async function requireAuth() {
   return session.user;
 }
 
-export async function criarProduto(formData: z.infer<typeof produtoSchema>) {
-  await requireAuth();
-  const data = produtoSchema.parse(formData);
-
-  if (data.podeFracionar && !data.pesoUnidade) {
-    throw new Error("Peso da unidade obrigatório para produto fracionável");
+function tratarErroPrisma(err: unknown, escopo: "criar" | "atualizar"): string {
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    if (err.code === "P2002") {
+      const campos = (err.meta?.target as string[] | undefined) ?? [];
+      if (campos.includes("codigo")) return "Já existe um produto com esse código interno.";
+      if (campos.includes("gtin")) return "Já existe um produto com esse GTIN/EAN.";
+      return "Valor duplicado em campo único.";
+    }
+    if (err.code === "P2025") return "Produto não encontrado.";
   }
-
-  await prisma.produto.create({
-    data: {
-      codigo: data.codigo,
-      gtin: data.gtin || null,
-      nome: data.nome,
-      descricao: data.descricao || null,
-      categoriaId: data.categoriaId || null,
-      unidade: data.unidade,
-      precoCusto: data.precoCusto,
-      precoVenda: data.precoVenda,
-      podeFracionar: data.podeFracionar,
-      pesoUnidade: data.pesoUnidade || null,
-      unidadeFracao: data.unidadeFracao || null,
-      quantidade: data.quantidade,
-      quantidadeMinima: data.quantidadeMinima,
-    },
-  });
-
-  revalidatePath("/estoque");
+  if (err instanceof z.ZodError) {
+    return err.issues.map((i) => i.message).join(", ");
+  }
+  console.error(`[produtos] erro ao ${escopo}:`, err);
+  return err instanceof Error ? err.message : "Erro desconhecido ao salvar produto.";
 }
 
-export async function atualizarProduto(id: string, formData: z.infer<typeof produtoSchema>) {
-  await requireAuth();
-  const data = produtoSchema.parse(formData);
+export async function criarProduto(formData: z.infer<typeof produtoSchema>): Promise<ActionResult> {
+  try {
+    await requireAuth();
+    const data = produtoSchema.parse(formData);
 
-  await prisma.produto.update({
-    where: { id },
-    data: {
-      codigo: data.codigo,
-      gtin: data.gtin || null,
-      nome: data.nome,
-      descricao: data.descricao || null,
-      categoriaId: data.categoriaId || null,
-      unidade: data.unidade,
-      precoCusto: data.precoCusto,
-      precoVenda: data.precoVenda,
-      podeFracionar: data.podeFracionar,
-      pesoUnidade: data.pesoUnidade || null,
-      unidadeFracao: data.unidadeFracao || null,
-      quantidadeMinima: data.quantidadeMinima,
-    },
-  });
+    if (data.podeFracionar && !data.pesoUnidade) {
+      return { ok: false, error: "Peso da unidade é obrigatório quando o produto pode ser fracionado." };
+    }
 
-  revalidatePath("/estoque");
+    await prisma.produto.create({
+      data: {
+        codigo: data.codigo.trim(),
+        gtin: data.gtin?.trim() || null,
+        nome: data.nome.trim(),
+        descricao: data.descricao?.trim() || null,
+        categoriaId: data.categoriaId || null,
+        unidade: data.unidade,
+        precoCusto: normalizarNumero(data.precoCusto),
+        precoVenda: normalizarNumero(data.precoVenda),
+        podeFracionar: data.podeFracionar,
+        pesoUnidade: data.pesoUnidade ? normalizarNumero(data.pesoUnidade) : null,
+        unidadeFracao: data.unidadeFracao || null,
+        quantidade: normalizarNumero(data.quantidade),
+        quantidadeMinima: normalizarNumero(data.quantidadeMinima),
+      },
+    });
+
+    revalidatePath("/estoque");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: tratarErroPrisma(err, "criar") };
+  }
+}
+
+export async function atualizarProduto(id: string, formData: z.infer<typeof produtoSchema>): Promise<ActionResult> {
+  try {
+    await requireAuth();
+    const data = produtoSchema.parse(formData);
+
+    if (data.podeFracionar && !data.pesoUnidade) {
+      return { ok: false, error: "Peso da unidade é obrigatório quando o produto pode ser fracionado." };
+    }
+
+    await prisma.produto.update({
+      where: { id },
+      data: {
+        codigo: data.codigo.trim(),
+        gtin: data.gtin?.trim() || null,
+        nome: data.nome.trim(),
+        descricao: data.descricao?.trim() || null,
+        categoriaId: data.categoriaId || null,
+        unidade: data.unidade,
+        precoCusto: normalizarNumero(data.precoCusto),
+        precoVenda: normalizarNumero(data.precoVenda),
+        podeFracionar: data.podeFracionar,
+        pesoUnidade: data.pesoUnidade ? normalizarNumero(data.pesoUnidade) : null,
+        unidadeFracao: data.unidadeFracao || null,
+        quantidadeMinima: normalizarNumero(data.quantidadeMinima),
+      },
+    });
+
+    revalidatePath("/estoque");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: tratarErroPrisma(err, "atualizar") };
+  }
 }
 
 const ajusteSchema = z.object({

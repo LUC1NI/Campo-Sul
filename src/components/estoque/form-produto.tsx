@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Unidade, Categoria } from "@prisma/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Info, AlertCircle } from "lucide-react";
 
 const UNIDADES = [
   { value: "UN", label: "Unidade (UN)" },
@@ -16,20 +16,26 @@ const UNIDADES = [
   { value: "M", label: "Metro (M)" },
 ];
 
+const numeroValido = (v: string | null | undefined) => {
+  if (!v) return false;
+  const n = Number(String(v).replace(",", "."));
+  return !isNaN(n);
+};
+
 const schema = z.object({
-  codigo: z.string().min(1, "Obrigatório"),
+  codigo: z.string().min(1, "Código é obrigatório"),
   gtin: z.string().optional().nullable(),
-  nome: z.string().min(2, "Mínimo 2 caracteres"),
+  nome: z.string().min(2, "Nome precisa ter pelo menos 2 caracteres"),
   descricao: z.string().optional().nullable(),
   categoriaId: z.string().optional().nullable(),
   unidade: z.nativeEnum(Unidade),
-  precoCusto: z.string().min(1, "Obrigatório"),
-  precoVenda: z.string().min(1, "Obrigatório"),
+  precoCusto: z.string().refine((v) => numeroValido(v) && Number(v.replace(",", ".")) >= 0, "Use somente números (ex.: 12.50 ou 12,50)"),
+  precoVenda: z.string().refine((v) => numeroValido(v) && Number(v.replace(",", ".")) > 0, "Preço de venda precisa ser maior que zero"),
   podeFracionar: z.boolean(),
   pesoUnidade: z.string().optional().nullable(),
   unidadeFracao: z.nativeEnum(Unidade).optional().nullable(),
-  quantidade: z.string(),
-  quantidadeMinima: z.string(),
+  quantidade: z.string().refine((v) => !v || (numeroValido(v) && Number(v.replace(",", ".")) >= 0), "Use somente números"),
+  quantidadeMinima: z.string().refine((v) => !v || (numeroValido(v) && Number(v.replace(",", ".")) >= 0), "Use somente números"),
 });
 
 export type ProdutoFormData = z.infer<typeof schema>;
@@ -63,6 +69,20 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Aviso geral */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3 text-sm">
+        <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+        <div className="text-blue-900">
+          <p className="font-semibold">Antes de cadastrar:</p>
+          <ul className="mt-1 space-y-0.5 text-xs text-blue-800/90 list-disc list-inside">
+            <li>Campos com <span className="text-red-600">*</span> são obrigatórios.</li>
+            <li>Use ponto ou vírgula para decimais (ex.: 12.50 ou 12,50).</li>
+            <li>O <strong>código interno</strong> precisa ser único — não use o mesmo de outro produto.</li>
+            <li>Marque <strong>Venda fracionada</strong> só se o produto puder ser vendido por peso/volume (ex.: saco de milho vendido em kg).</li>
+          </ul>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
 
         {/* Coluna esquerda — Identificação */}
@@ -72,29 +92,66 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Código interno *" error={errors.codigo?.message}>
-              <input {...register("codigo")} className={inputCls} placeholder="RAC-001" />
+            <Field
+              label="Código interno"
+              required
+              hint="Identificador único do produto (ex.: MILHO-001, RAC-002)."
+              error={errors.codigo?.message}
+            >
+              <input
+                {...register("codigo")}
+                className={inputCls(!!errors.codigo)}
+                placeholder="RAC-001"
+              />
             </Field>
-            <Field label="GTIN / EAN (código de barras)" error={errors.gtin?.message}>
-              <input {...register("gtin")} className={inputCls} placeholder="7891234567890" />
+            <Field
+              label="GTIN / EAN (código de barras)"
+              optional
+              hint="Opcional. Deixe em branco se o produto não tem código de barras."
+              error={errors.gtin?.message}
+            >
+              <input
+                {...register("gtin")}
+                className={inputCls(!!errors.gtin)}
+                placeholder="7891234567890"
+              />
             </Field>
           </div>
 
-          <Field label="Nome do produto *" error={errors.nome?.message}>
-            <input {...register("nome")} className={inputCls} placeholder="Ração Premium Adulto 25kg" />
+          <Field
+            label="Nome do produto"
+            required
+            hint="Como o produto aparecerá no PDV e nas notas."
+            error={errors.nome?.message}
+          >
+            <input
+              {...register("nome")}
+              className={inputCls(!!errors.nome)}
+              placeholder="Ração Premium Adulto 25kg"
+            />
           </Field>
 
-          <Field label="Descrição" error={errors.descricao?.message}>
+          <Field
+            label="Descrição"
+            optional
+            hint="Detalhes complementares (marca, validade, indicação)."
+            error={errors.descricao?.message}
+          >
             <textarea
               {...register("descricao")}
-              className={inputCls}
+              className={inputCls(!!errors.descricao)}
               rows={4}
               placeholder="Detalhes adicionais..."
             />
           </Field>
 
-          <Field label="Categoria" error={errors.categoriaId?.message}>
-            <select {...register("categoriaId")} className={inputCls}>
+          <Field
+            label="Categoria"
+            optional
+            hint="Agrupa produtos para facilitar busca e relatórios."
+            error={errors.categoriaId?.message}
+          >
+            <select {...register("categoriaId")} className={inputCls(!!errors.categoriaId)}>
               <option value="">Sem categoria</option>
               {categorias.map((c) => (
                 <option key={c.id} value={c.id}>{c.nome}</option>
@@ -112,8 +169,13 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
               Preços e Unidade
             </h2>
 
-            <Field label="Unidade de estoque *" error={errors.unidade?.message}>
-              <select {...register("unidade")} className={inputCls}>
+            <Field
+              label="Unidade de estoque"
+              required
+              hint="Como o produto é controlado no estoque (UN para inteiro, KG para granel, etc.)."
+              error={errors.unidade?.message}
+            >
+              <select {...register("unidade")} className={inputCls(!!errors.unidade)}>
                 {UNIDADES.map((u) => (
                   <option key={u.value} value={u.value}>{u.label}</option>
                 ))}
@@ -121,11 +183,31 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
             </Field>
 
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Preço de custo (R$) *" error={errors.precoCusto?.message}>
-                <input {...register("precoCusto")} className={inputCls} placeholder="0,00" />
+              <Field
+                label="Preço de custo (R$)"
+                required
+                hint="Quanto você pagou pela unidade."
+                error={errors.precoCusto?.message}
+              >
+                <input
+                  {...register("precoCusto")}
+                  className={inputCls(!!errors.precoCusto)}
+                  placeholder="0,00"
+                  inputMode="decimal"
+                />
               </Field>
-              <Field label="Preço de venda (R$) *" error={errors.precoVenda?.message}>
-                <input {...register("precoVenda")} className={inputCls} placeholder="0,00" />
+              <Field
+                label="Preço de venda (R$)"
+                required
+                hint="Quanto será cobrado no PDV."
+                error={errors.precoVenda?.message}
+              >
+                <input
+                  {...register("precoVenda")}
+                  className={inputCls(!!errors.precoVenda)}
+                  placeholder="0,00"
+                  inputMode="decimal"
+                />
               </Field>
             </div>
           </section>
@@ -138,12 +220,32 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {!isEdit && (
-                <Field label="Quantidade inicial" error={errors.quantidade?.message}>
-                  <input {...register("quantidade")} className={inputCls} placeholder="0" />
+                <Field
+                  label="Quantidade inicial"
+                  optional
+                  hint="Quantas unidades já estão no estoque hoje. Use 0 se ainda não tem."
+                  error={errors.quantidade?.message}
+                >
+                  <input
+                    {...register("quantidade")}
+                    className={inputCls(!!errors.quantidade)}
+                    placeholder="0"
+                    inputMode="decimal"
+                  />
                 </Field>
               )}
-              <Field label="Qtd. mínima (alerta)" error={errors.quantidadeMinima?.message}>
-                <input {...register("quantidadeMinima")} className={inputCls} placeholder="0" />
+              <Field
+                label="Qtd. mínima (alerta)"
+                optional
+                hint="Quando o estoque ficar abaixo desse número, o sistema avisa para repor."
+                error={errors.quantidadeMinima?.message}
+              >
+                <input
+                  {...register("quantidadeMinima")}
+                  className={inputCls(!!errors.quantidadeMinima)}
+                  placeholder="0"
+                  inputMode="decimal"
+                />
               </Field>
             </div>
           </section>
@@ -165,22 +267,33 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
                   Venda fracionada
                 </label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Ex.: saco de 25 kg vendido também por quilo
+                  Marque se o produto pode ser vendido por peso/volume (ex.: saco de 25 kg vendido também por quilo).
                 </p>
               </div>
             </div>
 
             {podeFracionar && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                <Field label="Peso / volume da unidade *" error={errors.pesoUnidade?.message}>
+                <Field
+                  label="Peso / volume da unidade"
+                  required
+                  hint="Ex.: 25 (se a unidade fechada é um saco de 25 kg)."
+                  error={errors.pesoUnidade?.message}
+                >
                   <input
                     {...register("pesoUnidade")}
-                    className={inputCls}
-                    placeholder="25 (para saco de 25 kg)"
+                    className={inputCls(!!errors.pesoUnidade)}
+                    placeholder="25"
+                    inputMode="decimal"
                   />
                 </Field>
-                <Field label="Unidade fracionada *" error={errors.unidadeFracao?.message}>
-                  <select {...register("unidadeFracao")} className={inputCls}>
+                <Field
+                  label="Unidade fracionada"
+                  required
+                  hint="Em qual unidade o produto será vendido fracionado."
+                  error={errors.unidadeFracao?.message}
+                >
+                  <select {...register("unidadeFracao")} className={inputCls(!!errors.unidadeFracao)}>
                     <option value="">Selecione...</option>
                     {UNIDADES.map((u) => (
                       <option key={u.value} value={u.value}>{u.label}</option>
@@ -217,23 +330,46 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
   );
 }
 
-const inputCls =
-  "w-full px-3.5 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata transition-all";
+function inputCls(hasError: boolean) {
+  const base = "w-full px-3.5 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 transition-all";
+  if (hasError) {
+    return `${base} border-red-500 focus:ring-red-200 focus:border-red-500 bg-red-50/30`;
+  }
+  return `${base} border-border focus:ring-verde-mata/30 focus:border-verde-mata`;
+}
 
 function Field({
   label,
+  required,
+  optional,
+  hint,
   error,
   children,
 }: {
   label: string;
+  required?: boolean;
+  optional?: boolean;
+  hint?: string;
   error?: string;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-foreground/70 mb-1.5">{label}</label>
+      <label className="flex items-center gap-1.5 text-xs font-medium text-foreground/70 mb-1.5">
+        <span>{label}</span>
+        {required && <span className="text-red-600 font-bold">*</span>}
+        {optional && <span className="text-muted-foreground/70 text-[10px] uppercase tracking-wide">(opcional)</span>}
+      </label>
       {children}
-      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+      {hint && !error && (
+        <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{hint}</p>
+      )}
+      {error && (
+        <p className="flex items-center gap-1 text-xs text-red-600 mt-1 font-medium">
+          <AlertCircle className="w-3 h-3 flex-shrink-0" />
+          {error}
+        </p>
+      )}
     </div>
   );
 }

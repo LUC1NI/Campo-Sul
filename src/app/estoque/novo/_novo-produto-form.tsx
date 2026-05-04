@@ -15,8 +15,13 @@ export function NovoProdutoForm({ categorias }: NovoProdutoFormProps) {
 
   async function handleSubmit(data: ProdutoFormData) {
     try {
-      await criarProduto(data);
-      router.push("/estoque");
+      const result = await criarProduto(data);
+      if (result.ok) {
+        toast.success("Produto cadastrado com sucesso!");
+        router.push("/estoque");
+      } else {
+        toast.error(result.error);
+      }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao cadastrar produto");
     }
