@@ -1,8 +1,9 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { LogOut, User, Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LogOut, User, Menu, PanelLeftClose, PanelLeftOpen, ExternalLink } from "lucide-react";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 interface TopbarProps {
   user: { name: string; email: string; role: string };
@@ -13,6 +14,7 @@ interface TopbarProps {
 
 export function Topbar({ user, onMenuToggle, sidebarCollapsed, onToggleSidebar }: TopbarProps) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <header className="h-14 bg-white border-b border-border flex items-center justify-between px-4 lg:px-6 flex-shrink-0">
@@ -39,6 +41,15 @@ export function Topbar({ user, onMenuToggle, sidebarCollapsed, onToggleSidebar }
           </button>
         )}
       </div>
+
+      {/* Abrir em nova aba */}
+      <button
+        onClick={() => window.open(pathname, "_blank")}
+        title="Abrir esta tela em nova aba"
+        className="p-2 rounded-lg text-foreground/50 hover:text-foreground hover:bg-muted transition-colors"
+      >
+        <ExternalLink className="w-4 h-4" />
+      </button>
 
       {/* User menu */}
       <div className="relative">

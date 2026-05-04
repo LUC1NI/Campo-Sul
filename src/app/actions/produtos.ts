@@ -2,7 +2,6 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Unidade } from "@prisma/client";
@@ -56,7 +55,6 @@ export async function criarProduto(formData: z.infer<typeof produtoSchema>) {
   });
 
   revalidatePath("/estoque");
-  redirect("/estoque");
 }
 
 export async function atualizarProduto(id: string, formData: z.infer<typeof produtoSchema>) {
@@ -82,7 +80,6 @@ export async function atualizarProduto(id: string, formData: z.infer<typeof prod
   });
 
   revalidatePath("/estoque");
-  redirect("/estoque");
 }
 
 const ajusteSchema = z.object({

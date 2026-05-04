@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { FormProduto, ProdutoFormData } from "@/components/estoque/form-produto";
 import { criarProduto } from "@/app/actions/produtos";
 import { Categoria } from "@prisma/client";
@@ -10,15 +11,13 @@ interface NovoProdutoFormProps {
 }
 
 export function NovoProdutoForm({ categorias }: NovoProdutoFormProps) {
+  const router = useRouter();
+
   async function handleSubmit(data: ProdutoFormData) {
     try {
       await criarProduto(data);
+      router.push("/estoque");
     } catch (err: unknown) {
-      if (err && typeof err === "object" && "digest" in err &&
-          typeof (err as { digest: string }).digest === "string" &&
-          (err as { digest: string }).digest.startsWith("NEXT_REDIRECT")) {
-        throw err;
-      }
       toast.error(err instanceof Error ? err.message : "Erro ao cadastrar produto");
     }
   }

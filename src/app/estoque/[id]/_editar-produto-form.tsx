@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { FormProduto, ProdutoFormData } from "@/components/estoque/form-produto";
 import { atualizarProduto } from "@/app/actions/produtos";
 import { Categoria, Unidade } from "@prisma/client";
@@ -28,6 +29,7 @@ interface EditarProdutoFormProps {
 }
 
 export function EditarProdutoForm({ produto, categorias, extraSection }: EditarProdutoFormProps) {
+  const router = useRouter();
   const defaultValues: Partial<ProdutoFormData> = {
     codigo: produto.codigo,
     gtin: produto.gtin,
@@ -46,16 +48,8 @@ export function EditarProdutoForm({ produto, categorias, extraSection }: EditarP
   async function handleSubmit(data: ProdutoFormData) {
     try {
       await atualizarProduto(produto.id, data);
+      router.push("/estoque");
     } catch (err: unknown) {
-      if (
-        err &&
-        typeof err === "object" &&
-        "digest" in err &&
-        typeof (err as { digest: string }).digest === "string" &&
-        (err as { digest: string }).digest.startsWith("NEXT_REDIRECT")
-      ) {
-        throw err;
-      }
       toast.error(err instanceof Error ? err.message : "Erro ao salvar produto");
     }
   }
