@@ -48,15 +48,29 @@ export function LandingClient() {
     const dot = document.getElementById("cdot");
     const ring = document.getElementById("cring");
     let mx = 0, my = 0, rx = 0, ry = 0;
+    let rafId: number | null = null;
+    
+    const loop = () => {
+      const dx = mx - rx;
+      const dy = my - ry;
+      
+      if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+        rx += dx * 0.18;
+        ry += dy * 0.18;
+        if (ring) ring.style.transform = `translate(${rx}px, ${ry}px) translate(-50%, -50%)`;
+        rafId = requestAnimationFrame(loop);
+      } else {
+        rafId = null;
+      }
+    };
+
     const onMouseMove = (e: MouseEvent) => {
       mx = e.clientX; my = e.clientY;
       if (dot) dot.style.transform = `translate(${mx}px, ${my}px) translate(-50%, -50%)`;
-    };
-    let rafId: number;
-    const loop = () => {
-      rx += (mx - rx) * 0.18; ry += (my - ry) * 0.18;
-      if (ring) ring.style.transform = `translate(${rx}px, ${ry}px) translate(-50%, -50%)`;
-      rafId = requestAnimationFrame(loop);
+      
+      if (!rafId) {
+        rafId = requestAnimationFrame(loop);
+      }
     };
     if (dot && ring) {
       window.addEventListener("mousemove", onMouseMove);
@@ -71,7 +85,7 @@ export function LandingClient() {
       io.disconnect();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("mousemove", onMouseMove);
-      cancelAnimationFrame(rafId);
+      if (rafId) cancelAnimationFrame(rafId);
     };
   }, []);
 

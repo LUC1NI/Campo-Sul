@@ -107,8 +107,10 @@ export default function HomePage() {
       {/* ── HERO ── */}
       <section className="relative lg:min-h-screen flex items-end overflow-hidden" style={{background:"linear-gradient(180deg,#1d3a23 0%,#2d4a2b 35%,#243d22 65%,#1a2e1a 100%)"}}>
         <div className="absolute inset-0 overflow-hidden" data-parallax="0.3">
-          <img src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=2400&q=80"
-               alt="Campo ao amanhecer" className="absolute inset-0 w-full h-[120%] object-cover"/>
+          <div className="absolute inset-0 w-full h-[120%]">
+            <Image src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=2400&q=80"
+                 alt="Campo ao amanhecer" fill priority sizes="100vw" className="object-cover"/>
+          </div>
         </div>
 
         {/* Sun orb */}
@@ -243,8 +245,7 @@ export default function HomePage() {
             {PRODUTOS.map((p, i) => (
               <a key={p.tag} href={WA} target="_blank" rel="noopener"
                 className={`prod-card reveal group relative rounded-3xl overflow-hidden bg-verde-mata min-h-[280px] ${p.col}${i>0?` delay-${Math.min(i,4)}`:""}`}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.img} alt={p.alt} className="prod-img absolute inset-0 w-full h-full object-cover"/>
+                <Image src={p.img} alt={p.alt} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="prod-img object-cover"/>
                 <div className="absolute inset-0 bg-gradient-to-t from-verde-mata-2 via-verde-mata/40 to-transparent"/>
                 <div className="absolute top-5 left-5 right-5 flex items-start justify-between">
                   <span className="bg-bege/95 backdrop-blur text-verde-mata text-[10px] font-bold uppercase tracking-[0.22em] px-3 py-1.5 rounded-full">{p.tag}</span>
@@ -301,8 +302,7 @@ export default function HomePage() {
 
             <div className="hidden lg:block sticky top-24 h-[400px] reveal">
               <div className="relative w-full h-full rounded-3xl overflow-hidden bg-verde-mata">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1200&q=80" className="absolute inset-0 w-full h-full object-cover opacity-80" alt="Campo"/>
+                <Image src="https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1200&q=80" fill sizes="(max-width: 1200px) 100vw, 50vw" className="object-cover opacity-80" alt="Campo"/>
                 <div className="absolute inset-0 bg-gradient-to-tr from-verde-mata/95 via-verde-mata/60 to-transparent"/>
                 <div className="absolute bottom-8 left-8 right-8 text-white">
                   <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-verde-musgo mb-3">{"// no coração do paraná"}</p>
