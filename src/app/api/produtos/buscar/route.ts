@@ -39,6 +39,6 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json(produtos, {
-    headers: { "Cache-Control": "private, no-store" },
+    headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=30" },
   });
 }

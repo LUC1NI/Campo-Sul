@@ -1,32 +1,44 @@
 "use client";
 
 import { useCarrinho, MetodoPagamento } from "@/stores/carrinho-store";
-import { Plus, X, Tag } from "lucide-react";
+import { Plus, X, Tag, Banknote, CreditCard, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { nanoid } from "./utils";
 
-const METODOS: { value: MetodoPagamento; label: string }[] = [
-  { value: "DINHEIRO", label: "Dinheiro" },
-  { value: "DEBITO", label: "Débito" },
-  { value: "CREDITO", label: "Crédito" },
-  { value: "PIX", label: "PIX" },
+const METODOS: { value: MetodoPagamento; label: string; icon: React.ReactNode }[] = [
+  { value: "DINHEIRO", label: "Dinheiro", icon: <Banknote className="w-3.5 h-3.5" /> },
+  { value: "DEBITO",   label: "Débito",   icon: <CreditCard className="w-3.5 h-3.5" /> },
+  { value: "CREDITO",  label: "Crédito",  icon: <CreditCard className="w-3.5 h-3.5" /> },
+  { value: "PIX",      label: "PIX",      icon: <Smartphone className="w-3.5 h-3.5" /> },
 ];
 
-const fmt = (v: number) => `R$ ${v.toFixed(2).replace(".", ",")}`;
+const fmt = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function PainelPagamento() {
-  const { pagamentos, adicionarPagamento, removerPagamento, setDesconto, desconto, subtotal, total, totalPago, troco } =
-    useCarrinho();
+  const {
+    pagamentos, adicionarPagamento, removerPagamento,
+    setDesconto, desconto, subtotal, total, totalPago, troco,
+  } = useCarrinho();
+
   const [metodoSelecionado, setMetodoSelecionado] = useState<MetodoPagamento>("DINHEIRO");
   const [valorInput, setValorInput] = useState("");
   const [editandoDesconto, setEditandoDesconto] = useState(false);
   const [descontoInput, setDescontoInput] = useState("");
 
-  function handleAdicionarPagamento() {
+  const falta = Math.max(0, total() - totalPago());
+  const isDinheiro = metodoSelecionado === "DINHEIRO";
+
+  function handleAdicionarDinheiro() {
     const valor = parseFloat(valorInput.replace(",", "."));
     if (isNaN(valor) || valor <= 0) return;
     adicionarPagamento({ id: nanoid(), metodo: metodoSelecionado, valor });
     setValorInput("");
+  }
+
+  function handleConfirmarExato() {
+    if (falta <= 0.009) return;
+    adicionarPagamento({ id: nanoid(), metodo: metodoSelecionado, valor: parseFloat(falta.toFixed(2)) });
   }
 
   function aplicarDesconto() {
@@ -35,17 +47,16 @@ export function PainelPagamento() {
     setEditandoDesconto(false);
   }
 
-  function removerDesconto() {
-    setDesconto(0);
-    setDescontoInput("");
-  }
-
   function abrirDesconto() {
     setDescontoInput(desconto > 0 ? desconto.toFixed(2).replace(".", ",") : "");
     setEditandoDesconto(true);
   }
 
-  const falta = total() - totalPago();
+  const totalVal = total();
+  const totalPagoVal = totalPago();
+  const trocoVal = troco();
+  const subtotalVal = subtotal();
+  const quitado = totalPagoVal >= totalVal - 0.009;
 
   return (
     <div className="bg-white rounded-xl border border-border p-4 space-y-4">
@@ -57,40 +68,57 @@ export function PainelPagamento() {
           <button
             key={m.value}
             onClick={() => setMetodoSelecionado(m.value)}
-            className={`py-2 rounded-lg text-xs font-medium transition-all ${
+            className={`flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-all ${
               metodoSelecionado === m.value
-                ? "bg-verde-mata text-white"
+                ? "bg-verde-mata text-white shadow-sm"
                 : "border border-border text-muted-foreground hover:bg-muted"
             }`}
           >
+            {m.icon}
             {m.label}
           </button>
         ))}
       </div>
 
-      {/* Valor + botão adicionar */}
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={valorInput}
-          onChange={(e) => setValorInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdicionarPagamento()}
-          placeholder={`R$ ${falta > 0 ? falta.toFixed(2).replace(".", ",") : "0,00"}`}
-          className="flex-1 px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
-        />
+      {/* Área de entrada — condicional por método */}
+      {isDinheiro ? (
+        <div className="flex gap-2">
+          <input
+            type="text"
+            inputMode="decimal"
+            value={valorInput}
+            onChange={(e) => setValorInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAdicionarDinheiro()}
+            placeholder={`R$ ${falta > 0 ? falta.toFixed(2).replace(".", ",") : "0,00"}`}
+            className="flex-1 px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
+          />
+          <button
+            onClick={handleAdicionarDinheiro}
+            className="flex items-center gap-1 bg-verde-mata hover:bg-verde-claro text-white px-3 py-2 rounded-lg text-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
         <button
-          onClick={handleAdicionarPagamento}
-          className="flex items-center gap-1 bg-verde-mata hover:bg-verde-claro text-white px-3 py-2 rounded-lg text-sm transition-colors"
+          onClick={handleConfirmarExato}
+          disabled={falta <= 0.009}
+          className={`w-full flex items-center justify-between px-4 py-3 rounded-lg font-medium text-sm transition-all ${
+            falta > 0.009
+              ? "bg-verde-mata/10 hover:bg-verde-mata/20 text-verde-mata border border-verde-mata/30"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
+          }`}
         >
-          <Plus className="w-4 h-4" />
+          <span>Confirmar {METODOS.find((m) => m.value === metodoSelecionado)?.label}</span>
+          <span className="font-bold">{fmt(falta)}</span>
         </button>
-      </div>
+      )}
 
-      {/* Lista de pagamentos */}
+      {/* Lista de pagamentos adicionados */}
       {pagamentos.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           {pagamentos.map((p) => (
-            <div key={p.id} className="flex items-center justify-between text-sm">
+            <div key={p.id} className="flex items-center justify-between text-sm bg-muted/40 px-3 py-1.5 rounded-lg">
               <span className="text-muted-foreground">
                 {METODOS.find((m) => m.value === p.metodo)?.label}
               </span>
@@ -114,12 +142,12 @@ export function PainelPagamento() {
         {/* Subtotal */}
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Subtotal</span>
-          <span className={desconto > 0 ? "text-muted-foreground line-through" : "font-medium"}>
-            {fmt(subtotal())}
+          <span className={desconto > 0 ? "text-muted-foreground line-through text-xs" : "font-medium"}>
+            {fmt(subtotalVal)}
           </span>
         </div>
 
-        {/* Desconto — inline editable */}
+        {/* Desconto */}
         {editandoDesconto ? (
           <div className="flex items-center gap-2">
             <Tag className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
@@ -127,6 +155,7 @@ export function PainelPagamento() {
             <input
               autoFocus
               type="text"
+              inputMode="decimal"
               value={descontoInput}
               onChange={(e) => setDescontoInput(e.target.value)}
               onBlur={aplicarDesconto}
@@ -137,10 +166,7 @@ export function PainelPagamento() {
               className="w-24 px-2 py-1 rounded-lg border border-amber-300 text-sm text-right focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200"
               placeholder="0,00"
             />
-            <button
-              onClick={() => setEditandoDesconto(false)}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
+            <button onClick={() => setEditandoDesconto(false)} className="text-muted-foreground hover:text-foreground">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -155,14 +181,8 @@ export function PainelPagamento() {
             </button>
             {desconto > 0 ? (
               <div className="flex items-center gap-2">
-                <span className="text-amber-600 font-medium text-sm">
-                  − {fmt(desconto)}
-                </span>
-                <button
-                  onClick={removerDesconto}
-                  className="text-muted-foreground hover:text-destructive transition-colors"
-                  title="Remover desconto"
-                >
+                <span className="text-amber-600 font-medium text-sm">− {fmt(desconto)}</span>
+                <button onClick={() => { setDesconto(0); setDescontoInput(""); }} className="text-muted-foreground hover:text-destructive">
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -172,33 +192,35 @@ export function PainelPagamento() {
           </div>
         )}
 
-        {/* Total a pagar */}
-        <div className="flex justify-between items-center pt-1 border-t border-border">
-          <span className="font-semibold text-sm">Total</span>
-          <span className="font-bold text-base text-verde-mata">{fmt(total())}</span>
+        {/* TOTAL — destaque principal */}
+        <div className="flex justify-between items-center bg-verde-mata text-white px-4 py-3 rounded-xl">
+          <span className="font-bold text-sm uppercase tracking-wide">Total</span>
+          <span className="font-bold text-2xl font-fraunces">{fmt(totalVal)}</span>
         </div>
 
         {/* Pago */}
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Pago</span>
-          <span className={`font-semibold ${totalPago() >= total() ? "text-verde-mata" : "text-destructive"}`}>
-            {fmt(totalPago())}
-          </span>
-        </div>
-
-        {/* Troco */}
-        {troco() > 0 && (
-          <div className="flex justify-between text-sm">
-            <span className="font-medium text-verde-mata">Troco</span>
-            <span className="font-semibold text-verde-mata">{fmt(troco())}</span>
+        {pagamentos.length > 0 && (
+          <div className={`flex justify-between items-center px-3 py-2 rounded-lg text-sm ${
+            quitado ? "bg-emerald-50 text-emerald-700" : "bg-muted text-muted-foreground"
+          }`}>
+            <span className="font-medium">Pago</span>
+            <span className="font-semibold">{fmt(totalPagoVal)}</span>
           </div>
         )}
 
         {/* Falta */}
-        {falta > 0.01 && totalPago() > 0 && (
-          <div className="flex justify-between text-sm">
-            <span className="font-medium text-destructive">Falta</span>
-            <span className="font-semibold text-destructive">{fmt(falta)}</span>
+        {falta > 0.009 && totalPagoVal > 0 && (
+          <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-red-50 border border-red-200">
+            <span className="font-bold text-red-600 text-sm">Falta</span>
+            <span className="font-bold text-red-600 text-xl font-fraunces">{fmt(falta)}</span>
+          </div>
+        )}
+
+        {/* Troco */}
+        {trocoVal > 0.009 && (
+          <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200">
+            <span className="font-bold text-emerald-600 text-sm">Troco</span>
+            <span className="font-bold text-emerald-600 text-xl font-fraunces">{fmt(trocoVal)}</span>
           </div>
         )}
       </div>

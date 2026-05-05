@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Unidade, MetodoPagamento, TipoDocumento } from "@prisma/client";
+import { Unidade, MetodoPagamento, TipoDocumento, StatusVenda } from "@prisma/client";
 import { calcularFracionamento } from "@/lib/fracionamento";
 import { proximoNumero } from "@/lib/numeracao-nf";
 
@@ -297,25 +297,64 @@ export async function cancelarVenda(vendaId: string) {
   revalidatePath("/vendas/historico");
 }
 
-export async function buscarVendas(pagina = 1, porPagina = 20) {
+type VendasFiltros = {
+  periodo?: string;
+  usuarioId?: string;
+  metodo?: string;
+  status?: string;
+  q?: string;
+};
+
+export async function buscarVendas(pagina = 1, porPagina = 20, filtros: VendasFiltros = {}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const paginaSan = Math.max(1, Math.floor(Number(pagina) || 1));
   const porPaginaSan = Math.min(100, Math.max(1, Math.floor(Number(porPagina) || 20)));
 
+  let createdAtFilter: { gte?: Date; lt?: Date } | undefined;
+  if (filtros.periodo && filtros.periodo !== "todos") {
+    const now = new Date();
+    const hoje = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (filtros.periodo === "hoje") {
+      createdAtFilter = { gte: hoje, lt: new Date(hoje.getTime() + 86400000) };
+    } else if (filtros.periodo === "7d") {
+      createdAtFilter = { gte: new Date(hoje.getTime() - 6 * 86400000) };
+    } else if (filtros.periodo === "30d") {
+      createdAtFilter = { gte: new Date(hoje.getTime() - 29 * 86400000) };
+    }
+  }
+
+  const numeroBusca = filtros.q ? parseInt(filtros.q.replace(/\D/g, "")) : NaN;
+  const metodoValido = ["DINHEIRO", "DEBITO", "CREDITO", "PIX"].includes(filtros.metodo ?? "");
+  const statusValido = filtros.status === "CONCLUIDA" || filtros.status === "CANCELADA";
+
+  const where = {
+    ...(createdAtFilter ? { createdAt: createdAtFilter } : {}),
+    ...(statusValido ? { status: filtros.status as StatusVenda } : {}),
+    ...(filtros.usuarioId ? { usuarioId: filtros.usuarioId } : {}),
+    ...(metodoValido ? { pagamentos: { some: { metodo: filtros.metodo as MetodoPagamento } } } : {}),
+    ...(!isNaN(numeroBusca) ? { numero: numeroBusca } : {}),
+  };
+
   const [vendas, total] = await Promise.all([
     prisma.venda.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       skip: (paginaSan - 1) * porPaginaSan,
       take: porPaginaSan,
-      include: {
+      select: {
+        id: true,
+        numero: true,
+        status: true,
+        total: true,
+        createdAt: true,
         usuario: { select: { nome: true } },
         documento: { select: { id: true, tipo: true, numero: true, statusDoc: true, erroInfo: true } },
-        pagamentos: true,
+        pagamentos: { select: { metodo: true, valor: true } },
       },
     }),
-    prisma.venda.count(),
+    prisma.venda.count({ where }),
   ]);
 
   return { vendas, total, paginas: Math.ceil(total / porPaginaSan), pagina: paginaSan, porPagina: porPaginaSan };

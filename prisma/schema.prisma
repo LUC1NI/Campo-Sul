@@ -113,6 +113,8 @@ model Produto {
   @@index([nome])
   @@index([codigo])
   @@index([gtin])
+  @@index([ativo, deletedAt, nome])
+  @@index([categoriaId, ativo])
 }
 
 model Venda {
@@ -134,6 +136,7 @@ model Venda {
 
   @@index([createdAt])
   @@index([usuarioId])
+  @@index([status, createdAt])
 }
 
 model ItemVenda {
@@ -189,6 +192,8 @@ model Documento {
 
   @@unique([tipo, numero, serie])
   @@index([emitidoEm])
+  @@index([tipo, emitidoEm])
+  @@index([emitidoPorId])
 }
 
 model Counter {
