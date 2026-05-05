@@ -8,7 +8,7 @@
 
 ## 1. O que o sistema emite hoje
 
-O sistema CampoSul já gera **recibos e documentos internos em PDF** para cada venda. Esses documentos têm validade interna — servem para controle do estabelecimento, mas **não têm valor fiscal perante a Receita Federal e a SEFAZ (Secretaria da Fazenda do RS)**.
+O sistema CampoSul já gera **recibos e documentos internos em PDF** para cada venda. Esses documentos têm validade interna — servem para controle do estabelecimento, mas **não têm valor fiscal perante a Receita Federal e a SEFAZ-PR (Secretaria da Fazenda do Paraná)**.
 
 Ou seja: o cliente recebe um comprovante, mas não uma Nota Fiscal Eletrônica de verdade.
 
@@ -36,9 +36,9 @@ Existem dois tipos que se aplicam ao caso da CampoSul:
 
 Esses itens são exigências legais — independente do sistema escolhido:
 
-1. **Certificado Digital e-CNPJ** — documento eletrônico que identifica a empresa junto ao governo. Custo: R$ 200–400/ano. Válido por 1 a 3 anos.
-2. **Habilitação junto à SEFAZ-RS** — cadastro para autorizar a empresa a emitir NF-e. Feito pelo contador, sem custo.
-3. **Contador configurando os impostos** — ICMS, CFOP (código de operação fiscal), CST, NCM dos produtos. Sem isso o sistema não consegue preencher o XML corretamente.
+1. **Certificado Digital e-CNPJ (A1)** — documento eletrônico que identifica a empresa junto ao governo. Custo: R$ 200–400/ano. Válido por 1 a 3 anos.
+2. **Habilitação junto à SEFAZ-PR** — cadastro para autorizar a empresa a emitir NF-e. Feito pelo contador, sem custo.
+3. **Contador configurando os impostos** — ICMS, CFOP (código de operação fiscal), CSOSN (Simples Nacional) ou CST, e NCM de cada produto. Sem isso o sistema não consegue preencher o XML corretamente.
 4. **CNPJ ativo com regime tributário definido** — Simples Nacional, Lucro Presumido etc.
 
 > **Resumo:** O sistema é apenas a ferramenta. As obrigações legais precisam estar em ordem primeiro, com apoio de um contador.
@@ -79,96 +79,66 @@ Desenvolver diretamente o código que monta o XML, assina com o certificado e se
 
 ---
 
-## 5. Comparativo das principais APIs disponíveis
+## 5. Fornecedor confirmado: Focus NF-e
 
-### 5.1 Focus NF-e — `focusnfe.com.br`
+**Site:** `focusnfe.com.br` — uma das APIs mais utilizadas no Brasil, com ampla adoção e boa reputação entre desenvolvedores.
 
-Uma das APIs mais utilizadas no Brasil. Funciona com NF-e, NFC-e e NFS-e.
+### Plano avaliado: Retail (NFC-e)
 
-**Planos (valores aproximados, consultar site para valores atuais):**
+| Item | Detalhe |
+|------|---------|
+| Preço | **R$ 59,90 / mês** |
+| CNPJ inclusos | 1 |
+| Pacote base | 500 NFC-e + 100 NF-e por mês |
+| NFC-e excedente | R$ 0,05 por nota |
+| NF-e excedente | R$ 0,15 por nota |
+| Período de testes | 30 dias gratuitos (ambiente de homologação) |
 
-| Plano | Documentos/mês | Preço estimado |
-|-------|----------------|----------------|
-| Starter | 50 docs | ~R$ 79/mês |
-| Básico | 150 docs | ~R$ 149/mês |
-| Profissional | 500 docs | ~R$ 299/mês |
-| Enterprise | Ilimitado | Sob consulta |
+**Observação importante:** o plano inclui CFe S@T e CFe MFe, que são modalidades específicas de SP e CE respectivamente. Para o Paraná esses itens não se aplicam — o que importa para a CampoSul são a **NFC-e** (PDV/balcão) e a **NF-e** (vendas para CNPJ).
 
-**Importante sobre os limites de documentos:**
-- O limite não é um bloqueio. Se emitir além do plano, cada nota extra é cobrada individualmente (em torno de R$ 0,40–0,80 por nota).
-- Dá para estimar o custo com base no volume real de vendas.
-- Não há risco de "travar" a operação por ter ultrapassado o plano.
+### Avaliação do plano para a CampoSul
 
-**Avaliação:**
-- Interface de gestão clara
-- Boa documentação técnica
-- Suporte via chat e e-mail
-- Amplamente testado por desenvolvedores brasileiros
-
----
-
-### 5.2 Nuvem Fiscal — `nuvemfiscal.com.br`
-
-API mais moderna, com interface REST (mais fácil de integrar). Também suporta NF-e, NFC-e e NFS-e.
-
-**Planos (valores aproximados):**
-
-| Plano | Documentos/mês | Preço estimado |
-|-------|----------------|----------------|
-| Grátis | 50 docs | R$ 0 |
-| Starter | 200 docs | ~R$ 89/mês |
-| Profissional | 1.000 docs | ~R$ 199/mês |
-| Escala | Ilimitado | Sob consulta |
-
-**Importante:**
-- O plano **gratuito com 50 notas/mês** pode ser suficiente para começar
-- Notas excedentes também são cobradas por unidade
-- API mais moderna e bem documentada
-
-**Avaliação:**
-- Excelente documentação
-- Plano gratuito viabiliza testes sem custo
-- Suporte técnico disponível
-- Empresa mais nova, porém com boa reputação crescente
+- 500 NFC-e/mês ≈ 16 vendas/dia no balcão — adequado para o porte atual
+- 100 NF-e/mês ≈ 3 notas para CNPJ por dia — mais que suficiente para uma agropecuária
+- Excedente barato: R$ 0,05/NFC-e significa que mesmo dobrando o volume, o custo adicional é baixo
+- 30 dias de testes sem custo é o período certo para integrar e validar sem risco
 
 ---
 
 ## 6. Análise do volume: quantas notas por mês?
 
-Essa é a pergunta-chave para escolher o plano certo.
+Essa é a pergunta-chave para confirmar se o plano Retail é suficiente.
 
-**Perguntas para estimar:**
+**Exemplo prático para estimar:**
+- 10 vendas no balcão por dia = ~220 NFC-e/mês ✅ dentro do pacote
+- 3 vendas para fazendas/CNPJ por semana = ~12 NF-e/mês ✅ dentro do pacote
+- Total estimado: ~232 documentos/mês — bem dentro das 600 do pacote
 
-1. Quantas vendas para outras empresas (CNPJ) acontecem por mês? → precisam de NF-e
-2. Quantas vendas diretas ao consumidor no balcão acontecem por dia? → precisam de NFC-e
-3. Existe entrega de mercadoria que exige nota de transporte?
-
-**Exemplo prático:**
-- 2 vendas para fazendas por semana = ~8 NF-e/mês
-- 10 vendas no balcão por dia = ~220 NFC-e/mês
-- Total: ~228 documentos/mês → plano de 200 docs com pequeno excedente
-
-> Se o volume for abaixo de 50 documentos/mês, o **plano gratuito da Nuvem Fiscal é suficiente para começar sem nenhum custo de API**.
+> Se o volume for maior que o esperado, o excedente é previsível e barato (R$ 0,05 por NFC-e adicional).
 
 ---
 
-## 7. Recomendação
+## 7. O que precisa mudar no sistema para suportar NF-e real
 
-### Cenário 1: Volume baixo (até 50 notas/mês)
-**Nuvem Fiscal — Plano Gratuito**
-- Custo: R$ 0/mês de API
-- Custo total adicional: apenas o certificado digital (~R$ 400/ano = R$ 33/mês)
-- Ideal para começar e validar o processo
+O sistema atual já tem a estrutura de vendas completa. As principais adições necessárias são:
 
-### Cenário 2: Volume médio (50–200 notas/mês)
-**Nuvem Fiscal — Plano Starter (~R$ 89/mês)**
-- Custo total: ~R$ 89 + ~R$ 33 = ~R$ 122/mês
-- Cobre a grande maioria das operações de pequeno porte
+### No cadastro de produto
+| Campo | Descrição | Exemplo |
+|-------|-----------|---------|
+| **NCM** | Nomenclatura Comum do Mercosul — código fiscal do produto | `3101.00.00` (adubo) |
+| **CSOSN** | Situação tributária no Simples Nacional | `400` (sem débito de ICMS) |
+| **CFOP** | Código de operação — venda no balcão PR | `5102` |
 
-### Cenário 3: Volume alto (acima de 200 notas/mês)
-**Focus NF-e — Plano Profissional (~R$ 299/mês) ou Nuvem Fiscal escalonado**
-- A partir desse volume, o custo por nota extra começa a pesar
-- Vale avaliar planos anuais com desconto
+### Na configuração da empresa
+- Regime tributário (Simples Nacional = CRT 1)
+- IE (Inscrição Estadual) — já temos no `.env`
+
+### No fluxo de venda
+- Ao finalizar a venda, o sistema chama a API da Focus com os dados da nota
+- A Focus transmite para a SEFAZ-PR e retorna a chave de autorização
+- O PDF gerado passa a ser o DANFE (Documento Auxiliar da NF-e) oficial
+
+> **O que não muda:** a tela do PDV, o carrinho, o controle de estoque e os relatórios continuam exatamente como estão.
 
 ---
 
@@ -176,10 +146,10 @@ Essa é a pergunta-chave para escolher o plano certo.
 
 Após a decisão, o processo seria:
 
-1. **Contador** configura SEFAZ, define CFOP e NCM dos produtos (~1 semana)
-2. **Empresa** adquire certificado digital e-CNPJ (~3–5 dias úteis)
-3. **Desenvolvimento** integra a API escolhida no sistema (~2–3 semanas)
-4. **Ambiente de homologação** — SEFAZ disponibiliza ambiente de testes. Emitimos notas "de mentira" para validar tudo antes de ir a produção (~1 semana)
+1. **Contador** configura SEFAZ-PR, define CFOP e NCM dos produtos (~1 semana)
+2. **Empresa** adquire certificado digital e-CNPJ A1 (~3–5 dias úteis)
+3. **Desenvolvimento** integra a API Focus NF-e no sistema (~2–3 semanas)
+4. **Homologação** — 30 dias de testes gratuitos da Focus para validar notas contra a SEFAZ sem valor real (~1 semana)
 5. **Produção** — ativação em ambiente real com acompanhamento (~1 semana)
 
 **Estimativa total: 5 a 7 semanas do início ao fim**, com a parte de sistema levando de 2 a 3 semanas.
@@ -190,24 +160,25 @@ Após a decisão, o processo seria:
 
 | Item | Custo | Frequência |
 |------|-------|------------|
-| Certificado digital e-CNPJ | R$ 200–400 | A cada 1–3 anos |
-| API Nuvem Fiscal (plano grátis) | R$ 0 | Mensal |
-| API Nuvem Fiscal (plano starter) | ~R$ 89 | Mensal |
-| API Focus NF-e (plano básico) | ~R$ 149 | Mensal |
+| Certificado digital e-CNPJ A1 | R$ 200–400 | A cada 1–3 anos |
+| Focus NF-e — Plano Retail | **R$ 59,90** | Mensal |
+| NFC-e excedente (acima de 500) | R$ 0,05/nota | Por uso |
+| NF-e excedente (acima de 100) | R$ 0,15/nota | Por uso |
 | Desenvolvimento (integração) | A combinar | Único |
 
----
-
-## 10. Perguntas para decidir
-
-Para avançar, precisamos responder:
-
-- [ ] O estabelecimento já tem CNPJ e contador ativo?
-- [ ] Qual é o volume aproximado de vendas que precisariam de nota fiscal por mês?
-- [ ] As vendas são mais para outras empresas (NF-e) ou para consumidor final (NFC-e)?
-- [ ] Há urgência — existe fiscalização iminente ou cliente exigindo nota já?
-- [ ] A empresa prefere começar com plano gratuito e migrar conforme crescer?
+**Custo operacional mínimo após certificado:** R$ 59,90/mês.
 
 ---
 
-*Documento elaborado para apoiar a decisão de negócio. Valores de planos são estimativas — consultar os sites oficiais para valores atualizados.*
+## 10. Perguntas para decidir na reunião
+
+- [ ] Qual é o regime tributário? (Simples Nacional, Lucro Presumido?) — define os códigos CSOSN/CST
+- [ ] A empresa já tem Certificado Digital e-CNPJ A1 ativo?
+- [ ] O contador pode levantar o NCM dos principais produtos?
+- [ ] Qual é o volume médio de vendas por dia no balcão?
+- [ ] Existem vendas frequentes para CNPJ/fazendas que precisem de NF-e?
+- [ ] Fechar o plano Retail da Focus NF-e a R$ 59,90/mês?
+
+---
+
+*Documento elaborado para apoiar a decisão de negócio. Valores do plano Retail confirmados em maio/2026 — consultar o site oficial para eventuais atualizações.*
