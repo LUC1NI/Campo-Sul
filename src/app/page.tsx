@@ -321,7 +321,7 @@ export default function HomePage() {
           <div className="reveal mb-12 max-w-2xl">
             <p className="sec-num mb-3">— 05 / Onde estamos</p>
             <h2 className="font-fraunces text-4xl md:text-6xl font-bold text-verde-mata leading-[0.95]">
-              Venha tomar<br/>um café <em className="italic text-terra">com a gente</em>.
+              Venha <br/>nos <em className="italic text-terra">visitar</em>.
             </h2>
           </div>
 
