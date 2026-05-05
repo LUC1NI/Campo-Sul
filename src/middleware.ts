@@ -1,26 +1,39 @@
-import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default auth((req) => {
-  const isLoggedIn = !!req.auth;
-  const isAppRoute = req.nextUrl.pathname.startsWith("/dashboard") ||
-    req.nextUrl.pathname.startsWith("/vendas") ||
-    req.nextUrl.pathname.startsWith("/estoque") ||
-    req.nextUrl.pathname.startsWith("/notas") ||
-    req.nextUrl.pathname.startsWith("/relatorios") ||
-    req.nextUrl.pathname.startsWith("/usuarios");
+const ROTAS_PROTEGIDAS = [
+  "/dashboard",
+  "/vendas",
+  "/estoque",
+  "/notas",
+  "/relatorios",
+  "/usuarios",
+];
 
-  if (isAppRoute && !isLoggedIn) {
+export function middleware(req: NextRequest) {
+  const path = req.nextUrl.pathname;
+
+  // Auth.js v5 usa __Secure- prefix em produção (HTTPS) e sem prefix em dev
+  const sessionCookie =
+    req.cookies.get("__Secure-authjs.session-token") ??
+    req.cookies.get("authjs.session-token");
+
+  const isLoggedIn = !!sessionCookie?.value;
+  const isProtected = ROTAS_PROTEGIDAS.some((r) => path.startsWith(r));
+
+  if (isProtected && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", req.nextUrl));
   }
 
-  if (req.nextUrl.pathname === "/login" && isLoggedIn) {
+  if (path === "/login" && isLoggedIn) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };
