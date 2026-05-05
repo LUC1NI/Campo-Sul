@@ -1,39 +1,28 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+// Sem imports — usa apenas Web APIs nativas do Edge runtime
+// A validação real do JWT acontece no AppLayout (auth()) e nas Server Actions
 
-const ROTAS_PROTEGIDAS = [
-  "/dashboard",
-  "/vendas",
-  "/estoque",
-  "/notas",
-  "/relatorios",
-  "/usuarios",
-];
+const PROTEGIDAS = /^\/(dashboard|vendas|estoque|notas|relatorios|usuarios)/;
 
-export function middleware(req: NextRequest) {
-  const path = req.nextUrl.pathname;
+export function middleware(request: Request) {
+  const { pathname } = new URL(request.url);
+  const cookie = request.headers.get("cookie") ?? "";
 
-  // Auth.js v5 usa __Secure- prefix em produção (HTTPS) e sem prefix em dev
-  const sessionCookie =
-    req.cookies.get("__Secure-authjs.session-token") ??
-    req.cookies.get("authjs.session-token");
+  // Auth.js v5: cookie sem prefixo em HTTP (dev) e com __Secure- em HTTPS (prod)
+  const isLoggedIn =
+    cookie.includes("__Secure-authjs.session-token=") ||
+    cookie.includes("authjs.session-token=");
 
-  const isLoggedIn = !!sessionCookie?.value;
-  const isProtected = ROTAS_PROTEGIDAS.some((r) => path.startsWith(r));
-
-  if (isProtected && !isLoggedIn) {
-    return NextResponse.redirect(new URL("/login", req.nextUrl));
+  if (PROTEGIDAS.test(pathname) && !isLoggedIn) {
+    return Response.redirect(new URL("/login", request.url));
   }
 
-  if (path === "/login" && isLoggedIn) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
+  if (pathname === "/login" && isLoggedIn) {
+    return Response.redirect(new URL("/dashboard", request.url));
   }
-
-  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
