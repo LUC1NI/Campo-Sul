@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { ReciboDoc } from "@/components/pdf/recibo-doc";
+import { CupomDoc } from "@/components/pdf/cupom-doc";
 import { formatDataHora } from "@/lib/format";
 import React from "react";
 
@@ -37,7 +37,7 @@ export async function GET(
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const element = React.createElement(ReciboDoc as any, {
+  const element = React.createElement(CupomDoc as any, {
     numero: doc.numero,
     serie: doc.serie,
     data: formatDataHora(doc.emitidoEm),
