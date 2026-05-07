@@ -138,101 +138,114 @@ const confirmarSchema = z.object({
 
 export type ConfirmarImportacaoInput = z.infer<typeof confirmarSchema>;
 
-export async function confirmarImportacaoXml(input: ConfirmarImportacaoInput) {
+export async function confirmarImportacaoXml(
+  input: ConfirmarImportacaoInput
+): Promise<{ ok: true; novos: number; atualizados: number } | { ok: false; erro: string }> {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "ADMIN") throw new Error("Sem permissão");
 
-  const data = confirmarSchema.parse(input);
+  try {
+    if (session.user.role !== "ADMIN") return { ok: false, erro: "Sem permissão" };
 
-  const existente = await prisma.entradaXml.findUnique({
-    where: { chaveAcesso: data.chaveAcesso },
-    select: { id: true },
-  });
-  if (existente) throw new Error("Esta NF-e já foi importada anteriormente");
+    const data = confirmarSchema.parse(input);
 
-  await prisma.$transaction(
-    async (tx) => {
-      const entrada = await tx.entradaXml.create({
-        data: {
-          chaveAcesso: data.chaveAcesso,
-          numeroNf: data.numeroNf,
-          cnpjEmitente: data.cnpjEmitente,
-          nomeEmitente: data.nomeEmitente,
-          valorTotal: data.valorTotal,
-          xmlOriginal: data.xmlOriginal,
-          importadoPorId: session.user.id,
-        },
-      });
+    const existente = await prisma.entradaXml.findUnique({
+      where: { chaveAcesso: data.chaveAcesso },
+      select: { id: true },
+    });
+    if (existente) return { ok: false, erro: "Esta NF-e já foi importada anteriormente" };
 
-      for (let idx = 0; idx < data.itens.length; idx++) {
-        const item = data.itens[idx];
-        let produtoId: string;
-        let criouProduto = false;
+    let novos = 0;
+    let atualizados = 0;
 
-        if (item.produtoId) {
-          produtoId = item.produtoId;
-        } else {
-          const codigo = `IMP-${data.chaveAcesso.slice(-8)}-${String(idx + 1).padStart(3, "0")}`;
-          const precoVenda = item.precoVenda ?? item.valorUnitario;
+    await prisma.$transaction(
+      async (tx) => {
+        const entrada = await tx.entradaXml.create({
+          data: {
+            chaveAcesso: data.chaveAcesso,
+            numeroNf: data.numeroNf,
+            cnpjEmitente: data.cnpjEmitente,
+            nomeEmitente: data.nomeEmitente,
+            valorTotal: data.valorTotal,
+            xmlOriginal: data.xmlOriginal,
+            importadoPorId: session.user.id,
+          },
+        });
 
-          const novo = await tx.produto.create({
+        for (let idx = 0; idx < data.itens.length; idx++) {
+          const item = data.itens[idx];
+          let produtoId: string;
+          let criouProduto = false;
+
+          if (item.produtoId) {
+            produtoId = item.produtoId;
+            atualizados++;
+          } else {
+            const codigo = `IMP-${data.chaveAcesso.slice(-8)}-${String(idx + 1).padStart(3, "0")}`;
+            const precoVenda = item.precoVenda ?? item.valorUnitario;
+
+            const novo = await tx.produto.create({
+              data: {
+                codigo,
+                gtin: item.gtin ?? null,
+                nome: item.descricao,
+                unidade: item.unidadeMapeada,
+                precoCusto: item.valorUnitario,
+                precoVenda,
+                categoriaId: item.categoriaId ?? null,
+                quantidade: "0",
+              },
+            });
+            produtoId = novo.id;
+            criouProduto = true;
+            novos++;
+          }
+
+          const produto = await tx.produto.findUniqueOrThrow({ where: { id: produtoId } });
+          const novaQtd = (Number(produto.quantidade) + Number(item.quantidade)).toFixed(4);
+
+          await tx.produto.update({
+            where: { id: produtoId },
             data: {
-              codigo,
-              gtin: item.gtin ?? null,
-              nome: item.descricao,
-              unidade: item.unidadeMapeada,
-              precoCusto: item.valorUnitario,
-              precoVenda,
-              categoriaId: item.categoriaId ?? null,
-              quantidade: "0",
+              quantidade: novaQtd,
+              ...(criouProduto ? { precoCusto: item.valorUnitario } : {}),
             },
           });
-          produtoId = novo.id;
-          criouProduto = true;
+
+          await tx.movimentoEstoque.create({
+            data: {
+              produtoId,
+              tipo: "ENTRADA_XML",
+              quantidade: item.quantidade,
+              saldoApos: novaQtd,
+              precoCusto: item.valorUnitario,
+              referenciaId: entrada.id,
+              observacao: `NF-e ${data.numeroNf} — ${data.nomeEmitente}`,
+              usuarioId: session.user.id,
+            },
+          });
+
+          await tx.itemEntradaXml.create({
+            data: {
+              entradaId: entrada.id,
+              produtoId,
+              gtin: item.gtin ?? null,
+              descricao: item.descricao,
+              quantidade: item.quantidade,
+              valorUnitario: item.valorUnitario,
+              valorTotal: item.valorTotal,
+              criouProduto,
+            },
+          });
         }
+      },
+      { isolationLevel: "Serializable" }
+    );
 
-        const produto = await tx.produto.findUniqueOrThrow({ where: { id: produtoId } });
-        const novaQtd = (Number(produto.quantidade) + Number(item.quantidade)).toFixed(4);
-
-        await tx.produto.update({
-          where: { id: produtoId },
-          data: {
-            quantidade: novaQtd,
-            // Só atualiza custo ao criar produto novo; existentes mantêm o preço cadastrado
-            ...(criouProduto ? { precoCusto: item.valorUnitario } : {}),
-          },
-        });
-
-        await tx.movimentoEstoque.create({
-          data: {
-            produtoId,
-            tipo: "ENTRADA_XML",
-            quantidade: item.quantidade,
-            saldoApos: novaQtd,
-            precoCusto: item.valorUnitario,
-            referenciaId: entrada.id,
-            observacao: `NF-e ${data.numeroNf} — ${data.nomeEmitente}`,
-            usuarioId: session.user.id,
-          },
-        });
-
-        await tx.itemEntradaXml.create({
-          data: {
-            entradaId: entrada.id,
-            produtoId,
-            gtin: item.gtin ?? null,
-            descricao: item.descricao,
-            quantidade: item.quantidade,
-            valorUnitario: item.valorUnitario,
-            valorTotal: item.valorTotal,
-            criouProduto,
-          },
-        });
-      }
-    },
-    { isolationLevel: "Serializable" }
-  );
-
-  revalidatePath("/estoque");
+    revalidatePath("/estoque");
+    return { ok: true, novos, atualizados };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro ao importar NF-e";
+    return { ok: false, erro: msg };
+  }
 }

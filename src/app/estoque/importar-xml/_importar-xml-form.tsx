@@ -78,37 +78,34 @@ export function ImportarXmlForm() {
     }
 
     setLoading(true);
-    try {
-      await confirmarImportacaoXml({
-        chaveAcesso: preview.chaveAcesso,
-        numeroNf: preview.numeroNf,
-        cnpjEmitente: preview.cnpjEmitente,
-        nomeEmitente: preview.nomeEmitente,
-        valorTotal: preview.valorTotal,
-        xmlOriginal: xmlContent,
-        itens: preview.itens.map((item, i) => ({
-          gtin: item.gtin,
-          descricao: item.descricao,
-          unidadeNfe: item.unidadeNfe,
-          quantidade: item.quantidade,
-          valorUnitario: item.valorUnitario,
-          valorTotal: item.valorTotal,
-          produtoId: item.produtoId,
-          unidadeMapeada: item.unidadeMapeada,
-          precoVenda: item.produtoId ? undefined : precosVenda[i],
-          categoriaId: null,
-        })),
-      });
+    const result = await confirmarImportacaoXml({
+      chaveAcesso: preview.chaveAcesso,
+      numeroNf: preview.numeroNf,
+      cnpjEmitente: preview.cnpjEmitente,
+      nomeEmitente: preview.nomeEmitente,
+      valorTotal: preview.valorTotal,
+      xmlOriginal: xmlContent,
+      itens: preview.itens.map((item, i) => ({
+        gtin: item.gtin,
+        descricao: item.descricao,
+        unidadeNfe: item.unidadeNfe,
+        quantidade: item.quantidade,
+        valorUnitario: item.valorUnitario,
+        valorTotal: item.valorTotal,
+        produtoId: item.produtoId,
+        unidadeMapeada: item.unidadeMapeada,
+        precoVenda: item.produtoId ? undefined : precosVenda[i],
+        categoriaId: null,
+      })),
+    });
+    setLoading(false);
 
-      const novos = preview.itens.filter((i) => !i.produtoId).length;
-      const atualizados = preview.itens.filter((i) => i.produtoId).length;
-      setResultado({ novos, atualizados });
-      setStep("sucesso");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao importar");
-    } finally {
-      setLoading(false);
+    if (!result.ok) {
+      toast.error(result.erro);
+      return;
     }
+    setResultado({ novos: result.novos, atualizados: result.atualizados });
+    setStep("sucesso");
   }
 
   function resetar() {
