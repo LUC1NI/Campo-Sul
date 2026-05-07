@@ -25,9 +25,9 @@ export function parseNfeXml(xmlContent: string): NfeParseResult {
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
     removeNSPrefix: true,
-    parseTagValue: true,
+    parseTagValue: false,
     parseAttributeValue: false,
-    numberParseOptions: { leadingZeros: false, hex: false },
+    isArray: (name: string) => name === "det",
   });
 
   const parsed = parser.parse(xmlContent);

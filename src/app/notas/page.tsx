@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { AppLayout } from "@/components/app/app-layout";
 import { prisma } from "@/lib/prisma";
 import { formatBRL, formatDataHora } from "@/lib/format";
-import { FileText, Receipt } from "lucide-react";
+import { FileText, Receipt, Plus } from "lucide-react";
 import { PdfLink } from "@/components/notas/pdf-link";
 import { BotaoEmitirNF } from "@/components/notas/botao-emitir-nf";
 import Link from "next/link";
@@ -239,8 +239,15 @@ export default async function NotasPage({
   return (
     <AppLayout>
       <div className="space-y-5">
-        <div>
+        <div className="flex items-center justify-between gap-4">
           <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Notas e Recibos</h1>
+          <Link
+            href="/notas/nova"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-verde-mata text-white rounded-lg text-sm font-medium hover:bg-verde-claro transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Nota
+          </Link>
         </div>
 
         <form className="flex flex-wrap gap-2" method="GET">

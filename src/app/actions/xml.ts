@@ -197,7 +197,11 @@ export async function confirmarImportacaoXml(input: ConfirmarImportacaoInput) {
 
         await tx.produto.update({
           where: { id: produtoId },
-          data: { quantidade: novaQtd, precoCusto: item.valorUnitario },
+          data: {
+            quantidade: novaQtd,
+            // Só atualiza custo ao criar produto novo; existentes mantêm o preço cadastrado
+            ...(criouProduto ? { precoCusto: item.valorUnitario } : {}),
+          },
         });
 
         await tx.movimentoEstoque.create({

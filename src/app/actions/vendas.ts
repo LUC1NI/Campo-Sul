@@ -243,51 +243,48 @@ export async function cancelarVenda(vendaId: string) {
       const produtos = await tx.produto.findMany({ where: { id: { in: produtoIds } } });
       const produtoMap = new Map(produtos.map((p) => [p.id, p]));
 
-      for (const item of venda.itens) {
-        const produto = produtoMap.get(item.produtoId);
-        if (!produto) throw new Error(`Produto ${item.produtoId} não encontrado`);
+      if (venda.descontouEstoque) {
+        for (const item of venda.itens) {
+          const produto = produtoMap.get(item.produtoId);
+          if (!produto) throw new Error(`Produto ${item.produtoId} não encontrado`);
 
-        // Reverte as unidades fechadas consumidas
-        const novaQtd = Number(produto.quantidade) + Number(item.unidadesFechadasConsumidas);
+          const novaQtd = Number(produto.quantidade) + Number(item.unidadesFechadasConsumidas);
 
-        // Reverte a fração acumulada no saldo:
-        // Durante a venda: saldoFracionado += qtdVendida; enquanto saldo >= pesoUnidade: qty--, saldo -= peso
-        // A fração líquida acumulada = qtdVendida - unidadesFechadas * pesoUnidade
-        const pesoUnidade = produto.podeFracionar && produto.pesoUnidade
-          ? Number(produto.pesoUnidade)
-          : 0;
-        const fracaoAcumulada = pesoUnidade > 0
-          ? Number(item.quantidade) - Number(item.unidadesFechadasConsumidas) * pesoUnidade
-          : 0;
-        const novoSaldo = Math.max(0, Number(produto.saldoFracionado) - fracaoAcumulada);
+          const pesoUnidade = produto.podeFracionar && produto.pesoUnidade
+            ? Number(produto.pesoUnidade)
+            : 0;
+          const fracaoAcumulada = pesoUnidade > 0
+            ? Number(item.quantidade) - Number(item.unidadesFechadasConsumidas) * pesoUnidade
+            : 0;
+          const novoSaldo = Math.max(0, Number(produto.saldoFracionado) - fracaoAcumulada);
 
-        await tx.produto.update({
-          where: { id: item.produtoId },
-          data: {
-            quantidade: novaQtd.toFixed(4),
-            saldoFracionado: novoSaldo.toFixed(4),
-          },
+          await tx.produto.update({
+            where: { id: item.produtoId },
+            data: {
+              quantidade: novaQtd.toFixed(4),
+              saldoFracionado: novoSaldo.toFixed(4),
+            },
+          });
+
+          produto.quantidade = novaQtd.toFixed(4) as unknown as typeof produto.quantidade;
+          produto.saldoFracionado = novoSaldo.toFixed(4) as unknown as typeof produto.saldoFracionado;
+        }
+
+        await tx.movimentoEstoque.createMany({
+          data: venda.itens.map((item) => {
+            const p = produtoMap.get(item.produtoId)!;
+            return {
+              produtoId: item.produtoId,
+              tipo: "CANCELAMENTO_VENDA" as const,
+              quantidade: String(item.quantidade),
+              saldoApos: String(p.quantidade),
+              referenciaId: id,
+              observacao: `Cancelamento venda #${venda.numero}`,
+              usuarioId: session.user.id,
+            };
+          }),
         });
-
-        // atualiza o map para reverter múltiplos itens do mesmo produto
-        produto.quantidade = novaQtd.toFixed(4) as unknown as typeof produto.quantidade;
-        produto.saldoFracionado = novoSaldo.toFixed(4) as unknown as typeof produto.saldoFracionado;
       }
-
-      await tx.movimentoEstoque.createMany({
-        data: venda.itens.map((item) => {
-          const p = produtoMap.get(item.produtoId)!;
-          return {
-            produtoId: item.produtoId,
-            tipo: "CANCELAMENTO_VENDA" as const,
-            quantidade: String(item.quantidade),
-            saldoApos: String(p.quantidade),
-            referenciaId: id,
-            observacao: `Cancelamento venda #${venda.numero}`,
-            usuarioId: session.user.id,
-          };
-        }),
-      });
 
       await tx.venda.update({ where: { id }, data: { status: "CANCELADA" } });
     },
