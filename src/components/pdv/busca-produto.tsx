@@ -36,20 +36,6 @@ export function BuscaProduto({ inputRef }: BuscaProdutoProps) {
   const debouncedQuery = useDebounce(query, 150);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (debouncedQuery.length < 1) {
-      setResultados([]);
-      return;
-    }
-    fetch(`/api/produtos/buscar?q=${encodeURIComponent(debouncedQuery)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setResultados(data);
-        setAberto(data.length > 0);
-        setSelecionado(0);
-      });
-  }, [debouncedQuery]);
-
   const adicionarAoCarrinho = useCallback(
     (p: ProdutoBusca) => {
       const unidade = p.podeFracionar && p.unidadeFracao ? p.unidadeFracao : p.unidade;
@@ -70,6 +56,28 @@ export function BuscaProduto({ inputRef }: BuscaProdutoProps) {
     },
     [carrinhoStore, inputRef]
   );
+
+  useEffect(() => {
+    if (debouncedQuery.length < 1) {
+      setResultados([]);
+      return;
+    }
+    fetch(`/api/produtos/buscar?q=${encodeURIComponent(debouncedQuery)}`)
+      .then((r) => r.json())
+      .then((data: ProdutoBusca[]) => {
+        // Leitora de código de barras: digita EAN + Enter antes do debounce.
+        // Se volta 1 resultado e a query parece um código de barras (só dígitos,
+        // 8–14 chars), adiciona direto sem precisar de Enter.
+        const pareceCodigoBarras = /^\d{8,14}$/.test(debouncedQuery);
+        if (data.length === 1 && pareceCodigoBarras) {
+          adicionarAoCarrinho(data[0]);
+        } else {
+          setResultados(data);
+          setAberto(data.length > 0);
+          setSelecionado(0);
+        }
+      });
+  }, [debouncedQuery, adicionarAoCarrinho]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (!aberto) return;

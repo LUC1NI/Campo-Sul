@@ -18,12 +18,34 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export function ImportarXmlForm() {
+interface Categoria {
+  id: string;
+  nome: string;
+}
+
+function sugerirCategoria(descricao: string, categorias: Categoria[]): string {
+  if (categorias.length === 0) return "";
+  const normalizar = (s: string) =>
+    s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const desc = normalizar(descricao);
+  for (const cat of categorias) {
+    const palavras = normalizar(cat.nome).split(/\s+/);
+    if (palavras.some((p) => p.length >= 3 && desc.includes(p))) return cat.id;
+  }
+  return "";
+}
+
+interface ImportarXmlFormProps {
+  categorias: Categoria[];
+}
+
+export function ImportarXmlForm({ categorias }: ImportarXmlFormProps) {
   const [step, setStep] = useState<"upload" | "preview" | "sucesso">("upload");
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<XmlPreview | null>(null);
   const [xmlContent, setXmlContent] = useState("");
   const [precosVenda, setPrecosVenda] = useState<Record<number, string>>({});
+  const [categoriasId, setCategoriasId] = useState<Record<number, string>>({});
   const [drag, setDrag] = useState(false);
   const [resultado, setResultado] = useState({ novos: 0, atualizados: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,10 +66,15 @@ export function ImportarXmlForm() {
       setXmlContent(content);
       setPreview(result.data);
       const precos: Record<number, string> = {};
+      const cats: Record<number, string> = {};
       result.data.itens.forEach((item, i) => {
-        if (!item.produtoId) precos[i] = item.valorUnitario;
+        if (!item.produtoId) {
+          precos[i] = item.valorUnitario;
+          cats[i] = sugerirCategoria(item.descricao, categorias);
+        }
       });
       setPrecosVenda(precos);
+      setCategoriasId(cats);
       setStep("preview");
     } catch {
       toast.error("Erro ao processar arquivo");
@@ -95,7 +122,7 @@ export function ImportarXmlForm() {
         produtoId: item.produtoId,
         unidadeMapeada: item.unidadeMapeada,
         precoVenda: item.produtoId ? undefined : precosVenda[i],
-        categoriaId: null,
+        categoriaId: item.produtoId ? null : (categoriasId[i] || null),
       })),
     });
     setLoading(false);
@@ -113,6 +140,7 @@ export function ImportarXmlForm() {
     setPreview(null);
     setXmlContent("");
     setPrecosVenda({});
+    setCategoriasId({});
   }
 
   return (
@@ -268,6 +296,9 @@ export function ImportarXmlForm() {
                   <th className="text-right px-4 py-3 font-medium text-muted-foreground">
                     Preço Venda
                   </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    Categoria
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -318,6 +349,29 @@ export function ImportarXmlForm() {
                           className="w-28 px-2 py-1 text-right rounded border border-border text-sm focus:outline-none focus:ring-1 focus:ring-verde-mata focus:border-verde-mata"
                           placeholder="0.00"
                         />
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.produtoId ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <select
+                          value={categoriasId[i] ?? ""}
+                          onChange={(e) =>
+                            setCategoriasId((prev) => ({
+                              ...prev,
+                              [i]: e.target.value,
+                            }))
+                          }
+                          className="w-36 px-2 py-1 rounded border border-border text-sm focus:outline-none focus:ring-1 focus:ring-verde-mata focus:border-verde-mata bg-white"
+                        >
+                          <option value="">Sem categoria</option>
+                          {categorias.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.nome}
+                            </option>
+                          ))}
+                        </select>
                       )}
                     </td>
                   </tr>
