@@ -17,7 +17,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Unidade, MetodoPagamento, TipoDocumento } from "@prisma/client";
+// Enums definidos localmente para evitar @prisma/client no bundle do browser
+type Unidade = "UN" | "KG" | "L" | "SACO" | "CX" | "M";
+type MetodoPagamento = "DINHEIRO" | "DEBITO" | "CREDITO" | "PIX";
+type TipoDocumento = "NOTA" | "RECIBO";
 
 const UNIDADE_LABEL: Record<Unidade, string> = {
   UN: "Un", KG: "Kg", L: "Litro", SACO: "Saco", CX: "Caixa", M: "Metro",

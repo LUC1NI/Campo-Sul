@@ -140,54 +140,62 @@ export default function ImportarXmlPage() {
         </div>
 
         {step === "upload" && (
-          <div
-            className={`border-2 border-dashed rounded-xl p-14 text-center transition-colors cursor-pointer ${
-              drag
-                ? "border-verde-mata bg-verde-mata/5"
-                : "border-border hover:border-verde-mata/50 hover:bg-muted/30"
-            }`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDrag(true);
-            }}
-            onDragLeave={() => setDrag(false)}
-            onDrop={handleDrop}
-            onClick={() => !loading && inputRef.current?.click()}
-          >
-            {loading ? (
-              <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-8 h-8 animate-spin text-verde-mata" />
-                <p className="text-sm text-muted-foreground">
-                  Processando XML...
-                </p>
-              </div>
-            ) : (
-              <>
-                <Upload className="w-10 h-10 mx-auto mb-4 text-muted-foreground/40" />
-                <p className="text-base font-medium text-foreground mb-1">
-                  Arraste o arquivo XML aqui
-                </p>
-                <p className="text-sm text-muted-foreground mb-5">
-                  ou clique para selecionar
-                </p>
-                <span className="inline-flex items-center gap-2 px-4 py-2 bg-verde-mata text-white rounded-lg text-sm hover:bg-verde-claro transition-colors">
-                  <FileText className="w-4 h-4" />
-                  Selecionar arquivo .xml
-                </span>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  accept=".xml"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) processarArquivo(file);
-                    e.target.value = "";
-                  }}
-                />
-              </>
-            )}
-          </div>
+          <>
+            <input
+              ref={inputRef}
+              id="xml-file-input"
+              type="file"
+              accept=".xml"
+              className="hidden"
+              disabled={loading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) processarArquivo(file);
+                e.target.value = "";
+              }}
+            />
+            <div
+              className={`border-2 border-dashed rounded-xl p-14 text-center transition-colors ${
+                loading ? "cursor-default" : "cursor-pointer"
+              } ${
+                drag
+                  ? "border-verde-mata bg-verde-mata/5"
+                  : "border-border hover:border-verde-mata/50 hover:bg-muted/30"
+              }`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDrag(true);
+              }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={handleDrop}
+            >
+              {loading ? (
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-verde-mata" />
+                  <p className="text-sm text-muted-foreground">
+                    Processando XML...
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <Upload className="w-10 h-10 mx-auto mb-4 text-muted-foreground/40" />
+                  <p className="text-base font-medium text-foreground mb-1">
+                    Arraste o arquivo XML aqui
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-5">
+                    ou clique para selecionar
+                  </p>
+                  <label
+                    htmlFor="xml-file-input"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-verde-mata text-white rounded-lg text-sm hover:bg-verde-claro transition-colors cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Selecionar arquivo .xml
+                  </label>
+                </>
+              )}
+            </div>
+          </>
         )}
 
         {step === "preview" && preview && (
