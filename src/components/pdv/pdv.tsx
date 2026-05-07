@@ -105,9 +105,9 @@ export function PDV() {
   return (
     <div className="flex flex-col h-full">
       {/* Header PDV */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <div>
-          <h1 className="font-fraunces text-xl font-bold text-verde-mata">PDV — Ponto de Venda</h1>
+          <h1 className="font-fraunces text-lg font-bold text-verde-mata">PDV — Ponto de Venda</h1>
           <p className="text-xs text-muted-foreground hidden sm:block">F2 = Buscar · F4 = Pagamento · Esc = Fechar</p>
         </div>
         {carrinho.itens.length > 0 && (
@@ -120,9 +120,9 @@ export function PDV() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4 flex-1 min-h-0">
+      <div className="grid grid-cols-1 desk:grid-cols-[1fr_300px] xl:grid-cols-[1fr_340px] gap-3 flex-1 min-h-0">
         {/* Coluna esquerda: busca + carrinho */}
-        <div className="flex flex-col gap-4 min-h-0">
+        <div className="flex flex-col gap-3 min-h-0">
           <BuscaProduto inputRef={buscaRef} />
           <div className="flex-1 overflow-hidden">
             <Carrinho />
@@ -130,12 +130,12 @@ export function PDV() {
         </div>
 
         {/* Coluna direita: pagamento */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           <PainelPagamento />
           <button
             disabled={carrinho.itens.length === 0 || finalizando}
             onClick={() => setDialogAberto(true)}
-            className="w-full bg-verde-mata hover:bg-verde-claro disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-xl transition-colors text-lg"
+            className="w-full bg-verde-mata hover:bg-verde-claro disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
           >
             {finalizando ? "Finalizando..." : `Finalizar — R$ ${carrinho.total().toFixed(2).replace(".", ",")}`}
             <span className="block text-xs font-normal opacity-75">F4</span>

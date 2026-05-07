@@ -17,27 +17,27 @@ export function Topbar({ user, onMenuToggle, sidebarCollapsed, onToggleSidebar }
   const pathname = usePathname();
 
   return (
-    <header className="h-14 bg-white border-b border-border flex items-center justify-between px-4 lg:px-6 flex-shrink-0">
+    <header className="h-10 bg-white border-b border-border flex items-center justify-between px-3 desk:px-4 flex-shrink-0">
       <div className="flex items-center gap-1">
         {/* Mobile: hamburger */}
         <button
-          className="lg:hidden p-2 -ml-1 rounded-lg text-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+          className="desk:hidden p-1.5 -ml-1 rounded-lg text-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
           onClick={onMenuToggle}
           aria-label="Abrir menu"
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-4 h-4" />
         </button>
 
         {/* Desktop: collapse toggle */}
         {onToggleSidebar && (
           <button
-            className="hidden lg:flex p-2 rounded-lg text-foreground/50 hover:text-foreground hover:bg-muted transition-colors"
+            className="hidden desk:flex p-1.5 rounded-lg text-foreground/50 hover:text-foreground hover:bg-muted transition-colors"
             onClick={onToggleSidebar}
             title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
           >
             {sidebarCollapsed
-              ? <PanelLeftOpen className="w-5 h-5" />
-              : <PanelLeftClose className="w-5 h-5" />}
+              ? <PanelLeftOpen className="w-4 h-4" />
+              : <PanelLeftClose className="w-4 h-4" />}
           </button>
         )}
       </div>
@@ -46,7 +46,7 @@ export function Topbar({ user, onMenuToggle, sidebarCollapsed, onToggleSidebar }
       <button
         onClick={() => window.open(pathname, "_blank")}
         title="Abrir esta tela em nova aba"
-        className="p-2 rounded-lg text-foreground/50 hover:text-foreground hover:bg-muted transition-colors"
+        className="p-1.5 rounded-lg text-foreground/50 hover:text-foreground hover:bg-muted transition-colors"
       >
         <ExternalLink className="w-4 h-4" />
       </button>
@@ -57,8 +57,8 @@ export function Topbar({ user, onMenuToggle, sidebarCollapsed, onToggleSidebar }
           onClick={() => setOpen(!open)}
           className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity"
         >
-          <div className="w-8 h-8 rounded-full bg-verde-mata/10 flex items-center justify-center">
-            <User className="w-4 h-4 text-verde-mata" />
+          <div className="w-7 h-7 rounded-full bg-verde-mata/10 flex items-center justify-center">
+            <User className="w-3.5 h-3.5 text-verde-mata" />
           </div>
           <div className="text-left hidden sm:block">
             <div className="font-medium text-foreground text-xs">{user.name}</div>

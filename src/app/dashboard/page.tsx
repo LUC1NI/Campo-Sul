@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/app/app-layout";
 import { prisma } from "@/lib/prisma";
 import { formatBRL, formatData, formatDataHora } from "@/lib/format";
 import {
-  ShoppingCart, TrendingUp, Package, AlertTriangle,
+  ShoppingCart, TrendingUp, AlertTriangle,
   DollarSign, ArrowUp, ArrowDown, Minus,
 } from "lucide-react";
 import Link from "next/link";
@@ -104,37 +104,37 @@ function Variacao({ atual, anterior }: { atual: number; anterior: number }) {
 
 function DashboardSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div>
-        <div className="h-7 w-28 bg-muted rounded-lg animate-pulse" />
-        <div className="h-4 w-56 bg-muted rounded animate-pulse mt-1.5" />
+        <div className="h-6 w-28 bg-muted rounded-lg animate-pulse" />
+        <div className="h-3.5 w-56 bg-muted rounded animate-pulse mt-1" />
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 desk:grid-cols-4 gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-xl border border-border p-5">
-            <div className="flex items-center justify-between mb-3">
+          <div key={i} className="bg-white rounded-xl border border-border p-3">
+            <div className="flex items-center justify-between mb-2">
               <div className="h-3 w-20 bg-muted rounded animate-pulse" />
-              <div className="w-8 h-8 bg-muted rounded-lg animate-pulse" />
+              <div className="w-7 h-7 bg-muted rounded-lg animate-pulse" />
             </div>
-            <div className="h-8 w-20 bg-muted rounded animate-pulse" />
-            <div className="h-3 w-24 bg-muted rounded animate-pulse mt-1.5" />
+            <div className="h-6 w-20 bg-muted rounded animate-pulse" />
+            <div className="h-3 w-24 bg-muted rounded animate-pulse mt-1" />
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-3 bg-white rounded-xl border border-border">
-          <div className="px-5 py-4 border-b border-border"><div className="h-4 w-24 bg-muted rounded animate-pulse" /></div>
+      <div className="grid grid-cols-1 desk:grid-cols-5 gap-3">
+        <div className="desk:col-span-3 bg-white rounded-xl border border-border">
+          <div className="px-4 py-3 border-b border-border"><div className="h-4 w-24 bg-muted rounded animate-pulse" /></div>
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="px-5 py-3 flex items-center justify-between border-b border-border last:border-0">
+            <div key={i} className="px-4 py-2.5 flex items-center justify-between border-b border-border last:border-0">
               <div className="h-4 w-32 bg-muted rounded animate-pulse" />
               <div className="h-4 w-20 bg-muted rounded animate-pulse" />
             </div>
           ))}
         </div>
-        <div className="lg:col-span-2 bg-white rounded-xl border border-border p-5">
-          <div className="h-4 w-24 bg-muted rounded animate-pulse mb-4" />
+        <div className="desk:col-span-2 bg-white rounded-xl border border-border p-4">
+          <div className="h-4 w-24 bg-muted rounded animate-pulse mb-3" />
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex items-center justify-between py-2">
+            <div key={i} className="flex items-center justify-between py-1.5">
               <div className="h-4 w-16 bg-muted rounded animate-pulse" />
               <div className="h-4 w-20 bg-muted rounded animate-pulse" />
             </div>
@@ -158,87 +158,87 @@ async function DashboardContent() {
   } = await getDashboardData();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Cabeçalho */}
       <div>
-        <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="font-fraunces text-lg font-bold text-verde-mata">Dashboard</h1>
+        <p className="text-xs text-muted-foreground">
           {formatData(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy")}
         </p>
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 desk:grid-cols-4 gap-3">
 
         {/* Vendas hoje */}
-        <div className="bg-white rounded-xl border border-border p-5">
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-white rounded-xl border border-border p-3">
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Vendas hoje</span>
-            <div className="w-8 h-8 rounded-lg bg-verde-mata/10 text-verde-mata flex items-center justify-center">
-              <ShoppingCart className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-verde-mata/10 text-verde-mata flex items-center justify-center">
+              <ShoppingCart className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="font-fraunces text-2xl font-bold text-foreground">{vendasHoje}</div>
+          <div className="font-fraunces text-xl font-bold text-foreground">{vendasHoje}</div>
           <Variacao atual={vendasHoje} anterior={vendasOntem} />
         </div>
 
         {/* Faturamento */}
-        <div className="bg-white rounded-xl border border-border p-5">
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-white rounded-xl border border-border p-3">
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Faturamento</span>
-            <div className="w-8 h-8 rounded-lg bg-terra/10 text-terra flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-terra/10 text-terra flex items-center justify-center">
+              <TrendingUp className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="font-fraunces text-2xl font-bold text-foreground">{formatBRL(totalHoje)}</div>
+          <div className="font-fraunces text-xl font-bold text-foreground">{formatBRL(totalHoje)}</div>
           <Variacao atual={totalHoje} anterior={totalOntem} />
         </div>
 
         {/* Ticket médio */}
-        <div className="bg-white rounded-xl border border-border p-5">
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-white rounded-xl border border-border p-3">
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ticket médio</span>
-            <div className="w-8 h-8 rounded-lg bg-muted text-muted-foreground flex items-center justify-center">
-              <DollarSign className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-muted text-muted-foreground flex items-center justify-center">
+              <DollarSign className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="font-fraunces text-2xl font-bold text-foreground">
+          <div className="font-fraunces text-xl font-bold text-foreground">
             {vendasHoje > 0 ? formatBRL(ticketMedio) : "—"}
           </div>
-          <span className="text-xs text-muted-foreground mt-1 block">
+          <span className="text-xs text-muted-foreground mt-0.5 block">
             {produtosAtivos} produto{produtosAtivos !== 1 ? "s" : ""} ativos
           </span>
         </div>
 
         {/* Estoque crítico */}
-        <div className={`bg-white rounded-xl border p-5 ${estoqueCritico.length > 0 ? "border-yellow-200" : "border-border"}`}>
-          <div className="flex items-center justify-between mb-3">
+        <div className={`bg-white rounded-xl border p-3 ${estoqueCritico.length > 0 ? "border-yellow-200" : "border-border"}`}>
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Estoque baixo</span>
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
               estoqueCritico.length > 0 ? "bg-yellow-50 text-yellow-600" : "bg-muted text-muted-foreground"
             }`}>
-              <AlertTriangle className="w-4 h-4" />
+              <AlertTriangle className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className={`font-fraunces text-2xl font-bold ${estoqueCritico.length > 0 ? "text-yellow-600" : "text-foreground"}`}>
+          <div className={`font-fraunces text-xl font-bold ${estoqueCritico.length > 0 ? "text-yellow-600" : "text-foreground"}`}>
             {estoqueCritico.length}
           </div>
           {estoqueCritico.length > 0 ? (
-            <Link href="/relatorios" className="text-xs text-yellow-600 hover:underline mt-1 block">
+            <Link href="/relatorios" className="text-xs text-yellow-600 hover:underline mt-0.5 block">
               Ver detalhes →
             </Link>
           ) : (
-            <span className="text-xs text-muted-foreground mt-1 block">tudo ok</span>
+            <span className="text-xs text-muted-foreground mt-0.5 block">tudo ok</span>
           )}
         </div>
       </div>
 
       {/* Linha 2: Últimas vendas + Por método */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 desk:grid-cols-5 gap-3">
 
         {/* Últimas vendas */}
-        <div className="lg:col-span-3 bg-white rounded-xl border border-border">
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+        <div className="desk:col-span-3 bg-white rounded-xl border border-border">
+          <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
             <h2 className="font-semibold text-sm">Últimas vendas</h2>
             <Link href="/vendas/historico" className="text-xs text-verde-mata hover:underline">
               Ver todas →
@@ -246,16 +246,16 @@ async function DashboardContent() {
           </div>
           <div className="divide-y divide-border">
             {ultimasVendas.length === 0 ? (
-              <p className="px-5 py-8 text-sm text-muted-foreground text-center">Nenhuma venda registrada.</p>
+              <p className="px-4 py-6 text-sm text-muted-foreground text-center">Nenhuma venda registrada.</p>
             ) : (
               ultimasVendas.map((venda) => (
-                <div key={venda.id} className="px-5 py-3 flex items-center justify-between gap-4">
+                <div key={venda.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <span className="text-sm font-medium text-foreground">Venda #{venda.numero}</span>
                     <span className="ml-2 text-xs text-muted-foreground">por {venda.usuario.nome}</span>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-xs text-muted-foreground hidden sm:block">
+                    <span className="text-xs text-muted-foreground hidden desk:block">
                       {formatDataHora(venda.createdAt)}
                     </span>
                     <span className="text-sm font-semibold text-verde-mata">{formatBRL(Number(venda.total))}</span>
@@ -267,12 +267,12 @@ async function DashboardContent() {
         </div>
 
         {/* Por método de pagamento */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-border p-5">
-          <h2 className="font-semibold text-sm mb-4">Pagamentos hoje</h2>
+        <div className="desk:col-span-2 bg-white rounded-xl border border-border p-4">
+          <h2 className="font-semibold text-sm mb-3">Pagamentos hoje</h2>
           {porMetodo.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum pagamento ainda.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {(() => {
                 const totalMetodos = porMetodo.reduce((acc, m) => acc + Number(m._sum.valor ?? 0), 0);
                 return porMetodo.map((m) => {
@@ -307,18 +307,18 @@ async function DashboardContent() {
 
       {/* Linha 3: Top produtos + Estoque crítico */}
       {(topProdutos.length > 0 || estoqueCritico.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 desk:grid-cols-5 gap-3">
 
           {/* Top produtos */}
           {topProdutos.length > 0 && (
-            <div className="lg:col-span-3 bg-white rounded-xl border border-border">
-              <div className="px-5 py-4 border-b border-border">
+            <div className="desk:col-span-3 bg-white rounded-xl border border-border">
+              <div className="px-4 py-2.5 border-b border-border">
                 <h2 className="font-semibold text-sm">Mais vendidos hoje</h2>
               </div>
               <div className="divide-y divide-border">
                 {topProdutos.map((p, i) => (
-                  <div key={p.nome} className="px-5 py-3 flex items-center gap-4">
-                    <span className="text-lg font-fraunces font-bold text-muted-foreground/40 w-6 text-center">
+                  <div key={p.nome} className="px-4 py-2.5 flex items-center gap-3">
+                    <span className="text-base font-fraunces font-bold text-muted-foreground/40 w-5 text-center flex-shrink-0">
                       {i + 1}
                     </span>
                     <div className="flex-1 min-w-0">
@@ -336,8 +336,8 @@ async function DashboardContent() {
 
           {/* Estoque crítico */}
           {estoqueCritico.length > 0 && (
-            <div className={`bg-white rounded-xl border border-yellow-200 ${topProdutos.length > 0 ? "lg:col-span-2" : "lg:col-span-5"}`}>
-              <div className="px-5 py-4 border-b border-yellow-100 flex items-center justify-between">
+            <div className={`bg-white rounded-xl border border-yellow-200 ${topProdutos.length > 0 ? "desk:col-span-2" : "desk:col-span-5"}`}>
+              <div className="px-4 py-2.5 border-b border-yellow-100 flex items-center justify-between">
                 <h2 className="font-semibold text-sm text-yellow-700">Estoque crítico</h2>
                 <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
                   {estoqueCritico.length}
@@ -349,7 +349,7 @@ async function DashboardContent() {
                     ? Math.round((Number(p.quantidade) / Number(p.quantidadeMinima)) * 100)
                     : 0;
                   return (
-                    <div key={p.id} className="px-5 py-3">
+                    <div key={p.id} className="px-4 py-2.5">
                       <div className="flex items-center justify-between mb-1">
                         <Link href={`/estoque/${p.id}`} className="text-sm font-medium hover:underline truncate max-w-[60%]">
                           {p.nome}
@@ -374,7 +374,7 @@ async function DashboardContent() {
       )}
 
       {/* Atalhos rápidos */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
           { href: "/vendas", label: "Nova venda", desc: "Abrir PDV" },
           { href: "/estoque/novo", label: "Novo produto", desc: "Cadastrar no estoque" },
@@ -384,7 +384,7 @@ async function DashboardContent() {
           <Link
             key={item.href}
             href={item.href}
-            className="bg-white rounded-xl border border-border p-4 hover:border-verde-claro/50 hover:shadow-sm transition-all"
+            className="bg-white rounded-xl border border-border p-3 hover:border-verde-claro/50 hover:shadow-sm transition-all"
           >
             <p className="text-sm font-semibold">{item.label}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>

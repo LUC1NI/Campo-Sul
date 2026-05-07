@@ -47,7 +47,7 @@ export function Sidebar({ role, collapsed = false, onClose, onToggleCollapse }: 
           )}
         </Link>
         {!collapsed && onClose && (
-          <button onClick={onClose} className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+          <button onClick={onClose} className="desk:hidden w-8 h-8 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
             <X className="w-4 h-4" />
           </button>
         )}
@@ -88,7 +88,7 @@ export function Sidebar({ role, collapsed = false, onClose, onToggleCollapse }: 
           <button
             onClick={onToggleCollapse}
             title={collapsed ? "Expandir menu" : "Recolher menu"}
-            className="hidden lg:flex w-7 h-7 items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+            className="hidden desk:flex w-7 h-7 items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
           >
             {collapsed
               ? <ChevronRight className="w-4 h-4" />

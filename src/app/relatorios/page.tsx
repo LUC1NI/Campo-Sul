@@ -140,42 +140,42 @@ function Variacao({ atual, anterior, labelAnt }: { atual: number; anterior: numb
 
 function Skeleton() {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+    <div className="space-y-3">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
-          <div className="h-8 w-32 bg-muted rounded-lg animate-pulse" />
-          <div className="h-4 w-52 bg-muted rounded animate-pulse mt-1.5" />
+          <div className="h-6 w-32 bg-muted rounded-lg animate-pulse" />
+          <div className="h-3.5 w-52 bg-muted rounded animate-pulse mt-1" />
         </div>
-        <div className="h-9 w-60 bg-muted rounded-lg animate-pulse" />
+        <div className="h-8 w-56 bg-muted rounded-lg animate-pulse" />
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 desk:grid-cols-4 gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-xl border border-border p-5">
-            <div className="flex items-center justify-between mb-3">
+          <div key={i} className="bg-white rounded-xl border border-border p-3">
+            <div className="flex items-center justify-between mb-2">
               <div className="h-3 w-20 bg-muted rounded animate-pulse" />
-              <div className="w-8 h-8 bg-muted rounded-lg animate-pulse" />
+              <div className="w-7 h-7 bg-muted rounded-lg animate-pulse" />
             </div>
-            <div className="h-8 w-20 bg-muted rounded animate-pulse" />
-            <div className="h-3 w-24 bg-muted rounded animate-pulse mt-1.5" />
+            <div className="h-6 w-20 bg-muted rounded animate-pulse" />
+            <div className="h-3 w-24 bg-muted rounded animate-pulse mt-1" />
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-3 bg-white rounded-xl border border-border">
-          <div className="px-5 py-4 border-b border-border"><div className="h-4 w-28 bg-muted rounded animate-pulse" /></div>
+      <div className="grid grid-cols-1 desk:grid-cols-5 gap-3">
+        <div className="desk:col-span-3 bg-white rounded-xl border border-border">
+          <div className="px-4 py-3 border-b border-border"><div className="h-4 w-28 bg-muted rounded animate-pulse" /></div>
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="px-5 py-3 flex items-center gap-4">
+            <div key={i} className="px-4 py-2.5 flex items-center gap-3">
               <div className="w-5 h-4 bg-muted rounded animate-pulse" />
               <div className="flex-1"><div className="h-4 w-36 bg-muted rounded animate-pulse" /></div>
               <div className="h-4 w-20 bg-muted rounded animate-pulse" />
             </div>
           ))}
         </div>
-        <div className="lg:col-span-2 bg-white rounded-xl border border-border p-5">
-          <div className="h-4 w-24 bg-muted rounded animate-pulse mb-4" />
+        <div className="desk:col-span-2 bg-white rounded-xl border border-border p-4">
+          <div className="h-4 w-24 bg-muted rounded animate-pulse mb-3" />
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="mb-3">
-              <div className="flex justify-between mb-1.5">
+            <div key={i} className="mb-2.5">
+              <div className="flex justify-between mb-1">
                 <div className="h-4 w-16 bg-muted rounded animate-pulse" />
                 <div className="h-4 w-20 bg-muted rounded animate-pulse" />
               </div>
@@ -196,13 +196,13 @@ async function Content({ periodo }: { periodo: Periodo }) {
   const totalMetodos = porMetodo.reduce((acc, m) => acc + Number(m._sum.valor ?? 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Relatórios</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="font-fraunces text-lg font-bold text-verde-mata">Relatórios</h1>
+          <p className="text-xs text-muted-foreground">
             {formatData(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy")}
           </p>
         </div>
@@ -211,7 +211,7 @@ async function Content({ periodo }: { periodo: Periodo }) {
             <Link
               key={key}
               href={`/relatorios?periodo=${key}`}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                 periodo === key
                   ? "bg-white text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -224,72 +224,72 @@ async function Content({ periodo }: { periodo: Periodo }) {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 desk:grid-cols-4 gap-3">
 
-        <div className="bg-white rounded-xl border border-border p-5">
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-white rounded-xl border border-border p-3">
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Vendas</span>
-            <div className="w-8 h-8 rounded-lg bg-verde-mata/10 text-verde-mata flex items-center justify-center">
-              <ShoppingCart className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-verde-mata/10 text-verde-mata flex items-center justify-center">
+              <ShoppingCart className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="font-fraunces text-2xl font-bold text-foreground">{vendas}</div>
+          <div className="font-fraunces text-xl font-bold text-foreground">{vendas}</div>
           <Variacao atual={vendas} anterior={vendasAnt} labelAnt={labelAnt} />
         </div>
 
-        <div className="bg-white rounded-xl border border-border p-5">
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-white rounded-xl border border-border p-3">
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Faturamento</span>
-            <div className="w-8 h-8 rounded-lg bg-terra/10 text-terra flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-terra/10 text-terra flex items-center justify-center">
+              <TrendingUp className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="font-fraunces text-2xl font-bold text-foreground">{formatBRL(total)}</div>
+          <div className="font-fraunces text-xl font-bold text-foreground">{formatBRL(total)}</div>
           <Variacao atual={total} anterior={totalAnt} labelAnt={labelAnt} />
         </div>
 
-        <div className="bg-white rounded-xl border border-border p-5">
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-white rounded-xl border border-border p-3">
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ticket médio</span>
-            <div className="w-8 h-8 rounded-lg bg-muted text-muted-foreground flex items-center justify-center">
-              <DollarSign className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-muted text-muted-foreground flex items-center justify-center">
+              <DollarSign className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="font-fraunces text-2xl font-bold text-foreground">
+          <div className="font-fraunces text-xl font-bold text-foreground">
             {vendas > 0 ? formatBRL(ticket) : "—"}
           </div>
           {ticketAnt > 0 ? (
             <Variacao atual={ticket} anterior={ticketAnt} labelAnt={labelAnt} />
           ) : (
-            <span className="text-xs text-muted-foreground mt-1 block">por venda</span>
+            <span className="text-xs text-muted-foreground mt-0.5 block">por venda</span>
           )}
         </div>
 
-        <div className={`bg-white rounded-xl border p-5 ${produtosBaixos.length > 0 ? "border-yellow-200" : "border-border"}`}>
-          <div className="flex items-center justify-between mb-3">
+        <div className={`bg-white rounded-xl border p-3 ${produtosBaixos.length > 0 ? "border-yellow-200" : "border-border"}`}>
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Estoque baixo</span>
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
               produtosBaixos.length > 0 ? "bg-yellow-50 text-yellow-600" : "bg-muted text-muted-foreground"
             }`}>
-              <AlertTriangle className="w-4 h-4" />
+              <AlertTriangle className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className={`font-fraunces text-2xl font-bold ${produtosBaixos.length > 0 ? "text-yellow-600" : "text-foreground"}`}>
+          <div className={`font-fraunces text-xl font-bold ${produtosBaixos.length > 0 ? "text-yellow-600" : "text-foreground"}`}>
             {produtosBaixos.length}
           </div>
           {produtosBaixos.length > 0 ? (
-            <span className="text-xs text-yellow-600 mt-1 block">abaixo do mínimo</span>
+            <span className="text-xs text-yellow-600 mt-0.5 block">abaixo do mínimo</span>
           ) : (
-            <span className="text-xs text-muted-foreground mt-1 block">tudo ok</span>
+            <span className="text-xs text-muted-foreground mt-0.5 block">tudo ok</span>
           )}
         </div>
       </div>
 
       {/* Top produtos + Pagamentos */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 desk:grid-cols-5 gap-3">
 
-        <div className="lg:col-span-3 bg-white rounded-xl border border-border">
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+        <div className="desk:col-span-3 bg-white rounded-xl border border-border">
+          <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-muted-foreground" />
               <h2 className="font-semibold text-sm">Mais vendidos</h2>
@@ -299,20 +299,20 @@ async function Content({ periodo }: { periodo: Periodo }) {
             </Link>
           </div>
           {topProdutos.length === 0 ? (
-            <p className="px-5 py-10 text-sm text-muted-foreground text-center">Nenhuma venda no período.</p>
+            <p className="px-4 py-8 text-sm text-muted-foreground text-center">Nenhuma venda no período.</p>
           ) : (
             <div className="divide-y divide-border">
               {topProdutos.map((p, i) => {
                 const maxVal = Number(topProdutos[0].total_val);
                 const pct = maxVal > 0 ? (Number(p.total_val) / maxVal) * 100 : 0;
                 return (
-                  <div key={p.nome} className="px-5 py-3 flex items-center gap-4">
-                    <span className="text-base font-fraunces font-bold text-muted-foreground/40 w-5 text-right flex-shrink-0">
+                  <div key={p.nome} className="px-4 py-2.5 flex items-center gap-3">
+                    <span className="text-sm font-fraunces font-bold text-muted-foreground/40 w-5 text-right flex-shrink-0">
                       {i + 1}
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{p.nome}</p>
-                      <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
+                      <div className="mt-1 h-1 bg-muted rounded-full overflow-hidden">
                         <div className="h-full bg-verde-claro rounded-full" style={{ width: `${pct.toFixed(1)}%` }} />
                       </div>
                     </div>
@@ -327,22 +327,22 @@ async function Content({ periodo }: { periodo: Periodo }) {
           )}
         </div>
 
-        <div className="lg:col-span-2 bg-white rounded-xl border border-border p-5">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="desk:col-span-2 bg-white rounded-xl border border-border p-4">
+          <div className="flex items-center gap-2 mb-3">
             <DollarSign className="w-4 h-4 text-muted-foreground" />
             <h2 className="font-semibold text-sm">Pagamentos</h2>
           </div>
           {porMetodo.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">Nenhum pagamento no período.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {porMetodo.map((m) => {
                 const val = Number(m._sum.valor ?? 0);
                 const pct = totalMetodos > 0 ? (val / totalMetodos) * 100 : 0;
                 const barColor = METODO_BAR[m.metodo] ?? "bg-verde-claro";
                 return (
                   <div key={m.metodo}>
-                    <div className="flex items-center justify-between text-sm mb-1.5">
+                    <div className="flex items-center justify-between text-sm mb-1">
                       <span className="text-muted-foreground">{METODO_LABEL[m.metodo] ?? m.metodo}</span>
                       <div className="text-right">
                         <span className="font-semibold text-foreground">{formatBRL(val)}</span>
@@ -355,7 +355,7 @@ async function Content({ periodo }: { periodo: Periodo }) {
                   </div>
                 );
               })}
-              <div className="pt-3 border-t border-border flex justify-between items-center">
+              <div className="pt-2 border-t border-border flex justify-between items-center">
                 <span className="text-sm text-muted-foreground font-medium">Total</span>
                 <span className="text-sm font-bold text-foreground">{formatBRL(totalMetodos)}</span>
               </div>
@@ -367,7 +367,7 @@ async function Content({ periodo }: { periodo: Periodo }) {
       {/* Estoque baixo */}
       {produtosBaixos.length > 0 && (
         <div className="bg-white rounded-xl border border-yellow-200">
-          <div className="px-5 py-4 border-b border-yellow-100 flex items-center justify-between">
+          <div className="px-4 py-2.5 border-b border-yellow-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-yellow-600" />
               <h2 className="font-semibold text-sm text-yellow-700">Estoque abaixo do mínimo</h2>
@@ -383,8 +383,8 @@ async function Content({ periodo }: { periodo: Periodo }) {
                 : 0;
               const uni = UNIDADE_LABEL[p.unidade] ?? p.unidade;
               return (
-                <div key={p.id} className="px-5 py-3">
-                  <div className="flex items-center justify-between mb-1.5">
+                <div key={p.id} className="px-4 py-2.5">
+                  <div className="flex items-center justify-between mb-1">
                     <Link href={`/estoque/${p.id}`} className="text-sm font-medium hover:underline text-foreground truncate max-w-[55%]">
                       {p.nome}
                     </Link>
@@ -409,7 +409,7 @@ async function Content({ periodo }: { periodo: Periodo }) {
       )}
 
       {/* Atalhos */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {[
           { href: "/vendas/historico", Icon: History, label: "Histórico de vendas", desc: "Ver todas as vendas realizadas" },
           { href: "/notas", Icon: FileText, label: "Notas e recibos", desc: "Documentos emitidos" },
@@ -418,9 +418,9 @@ async function Content({ periodo }: { periodo: Periodo }) {
           <Link
             key={href}
             href={href}
-            className="bg-white rounded-xl border border-border p-4 hover:border-verde-claro/50 hover:shadow-sm transition-all flex items-start gap-3"
+            className="bg-white rounded-xl border border-border p-3 hover:border-verde-claro/50 hover:shadow-sm transition-all flex items-start gap-3"
           >
-            <Icon className="w-5 h-5 text-verde-mata mt-0.5 flex-shrink-0" />
+            <Icon className="w-4 h-4 text-verde-mata mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm font-semibold">{label}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>

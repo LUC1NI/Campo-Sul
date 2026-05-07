@@ -59,7 +59,7 @@ export function PainelPagamento() {
   const quitado = totalPagoVal >= totalVal - 0.009;
 
   return (
-    <div className="bg-white rounded-xl border border-border p-4 space-y-4">
+    <div className="bg-white rounded-xl border border-border p-3 space-y-3">
       <h2 className="font-semibold text-sm text-foreground">Pagamento</h2>
 
       {/* Seletor de método */}
@@ -68,7 +68,7 @@ export function PainelPagamento() {
           <button
             key={m.value}
             onClick={() => setMetodoSelecionado(m.value)}
-            className={`flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-all ${
+            className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg text-xs font-medium transition-all ${
               metodoSelecionado === m.value
                 ? "bg-verde-mata text-white shadow-sm"
                 : "border border-border text-muted-foreground hover:bg-muted"
@@ -193,7 +193,7 @@ export function PainelPagamento() {
         )}
 
         {/* TOTAL — destaque principal */}
-        <div className="flex justify-between items-center bg-verde-mata text-white px-4 py-3 rounded-xl">
+        <div className="flex justify-between items-center bg-verde-mata text-white px-4 py-2.5 rounded-xl">
           <span className="font-bold text-sm uppercase tracking-wide">Total</span>
           <span className="font-bold text-2xl font-fraunces">{fmt(totalVal)}</span>
         </div>
@@ -210,7 +210,7 @@ export function PainelPagamento() {
 
         {/* Falta */}
         {falta > 0.009 && totalPagoVal > 0 && (
-          <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-red-50 border border-red-200">
+          <div className="flex justify-between items-center px-4 py-2 rounded-xl bg-red-50 border border-red-200">
             <span className="font-bold text-red-600 text-sm">Falta</span>
             <span className="font-bold text-red-600 text-xl font-fraunces">{fmt(falta)}</span>
           </div>
@@ -218,7 +218,7 @@ export function PainelPagamento() {
 
         {/* Troco */}
         {trocoVal > 0.009 && (
-          <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200">
+          <div className="flex justify-between items-center px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
             <span className="font-bold text-emerald-600 text-sm">Troco</span>
             <span className="font-bold text-emerald-600 text-xl font-fraunces">{fmt(trocoVal)}</span>
           </div>
