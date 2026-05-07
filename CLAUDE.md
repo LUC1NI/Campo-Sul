@@ -90,18 +90,60 @@ pnpm prisma db seed                   # seed inicial
 - [x] Fase 7: Polimento UI do site institucional
 - [ ] Fase 8: Deploy Vercel + hardening
 
-## Estado atual (2026-04-30)
-Fases 0–7 concluídas. `/usuarios` implementado. Build produção OK. 11/11 testes passando.
+## Estado atual (2026-05-06)
+Fases 0–7 concluídas. Deploy no Vercel funcionando. 11/11 testes passando.
+Importação XML NF-e funcionando (SIEG formato 4.00 com bloco IBSCBSTot).
+`/notas/nova` — geração de nota avulsa com opção de descontar ou não o estoque.
+Focus NFe: `src/lib/focusnfe.ts` criado, aguardando token de produção da cliente.
 
-**PRÓXIMO PASSO — para rodar o sistema:**
-1. Copiar `.env.local` a partir de `.env.example` e preencher credenciais Supabase
-2. `pnpm prisma migrate dev --name init`
-3. `pnpm prisma db seed`
-4. `pnpm dev` → http://localhost:3000
+**Pendente para ficar 100% completo (Fase 8):**
+- [ ] Conectar Focus NFe no PDV (emitir NFCe após finalizar venda) e em /notas (status + DANFE oficial)
+- [ ] Paginação + filtros na listagem `/notas` (hoje limita 100 registros)
+- [ ] Variáveis de empresa no Vercel: `EMPRESA_RAZAO_SOCIAL`, `EMPRESA_CNPJ`, `EMPRESA_IE`, `EMPRESA_ENDERECO`, `EMPRESA_FONE` (afetam PDFs)
+- [ ] `FOCUSNFE_TOKEN` + `FOCUSNFE_AMBIENTE=producao` no Vercel quando cliente contratar
 
-**Pendente antes do deploy (Fase 8):**
-- [ ] Paginação + filtros na listagem `/notas` (hoje trava em 100 registros)
-- [ ] Vercel deploy + variáveis de ambiente em produção
+**Focus NFe — variáveis necessárias (.env):**
+- `FOCUSNFE_TOKEN` — token produção
+- `FOCUSNFE_TOKEN_HML` — token homologação (testes)
+- `FOCUSNFE_AMBIENTE` — `"producao"` | `"homologacao"` (default: homologacao)
+
+## Padrões aprendidos em produção (IMPORTANTE)
+
+**Server Actions devem retornar `{ok, erro}`, nunca `throw`**
+Em Next.js 15 produção, erros lançados em Server Actions aparecem como "An error occurred in the Server Components render" e NÃO são capturados pelo try-catch do Client Component. Padrão correto:
+```ts
+// ✅ correto
+export async function minhaAction(): Promise<{ok:true} | {ok:false; erro:string}> {
+  try { ...; return { ok: true }; }
+  catch (err) { return { ok: false, erro: err instanceof Error ? err.message : "Erro" }; }
+}
+// ❌ errado em produção
+export async function minhaAction() { throw new Error("algo"); }
+```
+
+**page.tsx = Server Component, interatividade = arquivo `_form.tsx` separado**
+Client Components NÃO podem importar Server Components (como `AppLayout`). Padrão obrigatório:
+```
+estoque/novo/page.tsx          → Server Component (só AppLayout + filho)
+estoque/novo/_novo-produto-form.tsx → "use client" com toda a lógica
+```
+
+**Transações Prisma com Supabase remoto precisam de timeout maior**
+O padrão de 5s estoura com múltiplas queries sequenciais (latência de rede por query):
+```ts
+await prisma.$transaction(async (tx) => { ... }, {
+  isolationLevel: "Serializable",
+  timeout: 30000,   // 30s — suficiente para NF-e com ~80 itens
+  maxWait: 10000,
+});
+```
+
+**Nunca importar `@prisma/client` em Client Components**
+Puxa código Node.js para o bundle do browser e causa crash. Definir enums localmente:
+```ts
+// ✅ em arquivos "use client"
+type Unidade = "UN" | "KG" | "L" | "SACO" | "CX" | "M";
+```
 
 ## Decisões e débitos técnicos
 - `src/app/(app)/` route group planejado mas implementado como AppLayout componente importado em cada página (evita conflito de rota). Funciona igual.
@@ -109,3 +151,4 @@ Fases 0–7 concluídas. `/usuarios` implementado. Build produção OK. 11/11 te
 - Import alias `@react-pdf/renderer` usa `renderToBuffer` (server-side) — não importar em Client Components
 - A imagem hero da landing usa pattern SVG inline — substituir por foto real de campo em produção
 - Fontes NotoSans hospedadas localmente em `public/fonts/` (Regular + Bold TTF). `recibo-doc.tsx` usa `path.join(process.cwd(), "public", "fonts", ...)` — sem dependência de CDN externo
+- NF-e parser: `parseTagValue: false` + `isArray: (name) => name === "det"` — evita float em GTIN e garante array mesmo com 1 item
