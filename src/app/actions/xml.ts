@@ -239,7 +239,7 @@ export async function confirmarImportacaoXml(
           });
         }
       },
-      { isolationLevel: "Serializable" }
+      { isolationLevel: "Serializable", timeout: 30000, maxWait: 10000 }
     );
 
     revalidatePath("/estoque");
