@@ -3,8 +3,8 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { AppLayout } from "@/components/app/app-layout";
 import { prisma } from "@/lib/prisma";
-import { formatBRL, formatDataHora } from "@/lib/format";
-import { FileText, Receipt, Plus } from "lucide-react";
+import { formatBRL, formatDataHora, formatCNPJ } from "@/lib/format";
+import { FileText, Receipt, Plus, PackageSearch, Truck } from "lucide-react";
 import { PdfLink } from "@/components/notas/pdf-link";
 import { BotaoEmitirNF } from "@/components/notas/botao-emitir-nf";
 import Link from "next/link";
@@ -12,7 +12,9 @@ import { TipoDocumento } from "@prisma/client";
 
 const POR_PAGINA = 30;
 
-type PageParams = { q?: string; tipo?: string; pagina?: string };
+type PageParams = { q?: string; tipo?: string; pagina?: string; tab?: string };
+
+// ── Notas Emitidas ──────────────────────────────────────────────────────────
 
 async function getNotas({ q, tipo, pagina }: { q: string; tipo: string; pagina: number }) {
   const where = {
@@ -188,6 +190,147 @@ async function NotasTabela({ params }: { params: PageParams }) {
   );
 }
 
+// ── NF-e Recebidas (importações XML) ────────────────────────────────────────
+
+async function getEntradasXml({ q, pagina }: { q: string; pagina: number }) {
+  const where = q
+    ? {
+        OR: [
+          { nomeEmitente: { contains: q, mode: "insensitive" as const } },
+          { cnpjEmitente: { contains: q } },
+          { numeroNf: { contains: q } },
+        ],
+      }
+    : {};
+
+  const [entradas, total] = await Promise.all([
+    prisma.entradaXml.findMany({
+      where,
+      orderBy: { importadoEm: "desc" },
+      skip: (pagina - 1) * POR_PAGINA,
+      take: POR_PAGINA,
+      select: {
+        id: true,
+        numeroNf: true,
+        cnpjEmitente: true,
+        nomeEmitente: true,
+        valorTotal: true,
+        importadoEm: true,
+        _count: { select: { itens: true } },
+      },
+    }),
+    prisma.entradaXml.count({ where }),
+  ]);
+
+  return { entradas, total, paginas: Math.ceil(total / POR_PAGINA) };
+}
+
+function TabelaXmlSkeleton() {
+  return (
+    <div className="bg-white rounded-xl border border-border overflow-x-auto">
+      <table className="w-full text-sm min-w-[600px]">
+        <thead>
+          <tr className="border-b border-border bg-muted/50">
+            {["NF-e", "Fornecedor", "Data", "Itens", "Total", ""].map((h) => (
+              <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <tr key={i}>
+              <td className="px-4 py-3"><div className="h-4 w-24 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-40 bg-muted rounded animate-pulse mb-1" /><div className="h-3 w-28 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-28 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-12 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-20 bg-muted rounded animate-pulse ml-auto" /></td>
+              <td className="px-4 py-3"><div className="h-7 w-20 bg-muted rounded animate-pulse" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+async function EntradasXmlTabela({ params }: { params: PageParams }) {
+  const q = (params.q ?? "").trim().slice(0, 80);
+  const pagina = Math.max(1, Number(params.pagina) || 1);
+
+  const { entradas, total, paginas } = await getEntradasXml({ q, pagina });
+
+  function buildHref(p: number) {
+    const sp = new URLSearchParams();
+    sp.set("tab", "recebidas");
+    if (q) sp.set("q", q);
+    if (p > 1) sp.set("pagina", String(p));
+    return `/notas?${sp.toString()}`;
+  }
+
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">
+        {total} NF-e{total !== 1 ? "s" : ""} importada{total !== 1 ? "s" : ""}
+      </p>
+
+      <div className="bg-white rounded-xl border border-border overflow-x-auto">
+        <table className="w-full text-sm min-w-[600px]">
+          <thead>
+            <tr className="border-b border-border bg-muted/50">
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">NF-e</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Fornecedor</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Importada em</th>
+              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Itens</th>
+              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Total</th>
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {entradas.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                  <Truck className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  Nenhuma NF-e importada ainda
+                </td>
+              </tr>
+            ) : (
+              entradas.map((e) => (
+                <tr key={e.id} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-3 font-medium tabular-nums">
+                    Nº {e.numeroNf}
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-foreground leading-tight">{e.nomeEmitente}</p>
+                    <p className="text-xs text-muted-foreground">CNPJ: {formatCNPJ(e.cnpjEmitente)}</p>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatDataHora(e.importadoEm)}</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">{e._count.itens}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-verde-mata">
+                    {formatBRL(Number(e.valorTotal))}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Link
+                      href={`/notas/entrada/${e.id}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                      <PackageSearch className="w-3.5 h-3.5" />
+                      Ver itens
+                    </Link>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {paginas > 1 && <Paginacao pagina={pagina} paginas={paginas} buildHref={buildHref} />}
+    </>
+  );
+}
+
+// ── Paginação ────────────────────────────────────────────────────────────────
+
 function Paginacao({ pagina, paginas, buildHref }: { pagina: number; paginas: number; buildHref: (p: number) => string }) {
   const pages = buildPages(pagina, paginas);
   return (
@@ -227,12 +370,15 @@ function buildPages(current: number, total: number): (number | "...")[] {
   return pages;
 }
 
+// ── Page ─────────────────────────────────────────────────────────────────────
+
 export default async function NotasPage({
   searchParams,
 }: {
   searchParams: Promise<PageParams>;
 }) {
   const params = await searchParams;
+  const tab = params.tab === "recebidas" ? "recebidas" : "emitidas";
   const q = (params.q ?? "").trim().slice(0, 80);
   const tipo = params.tipo ?? "";
 
@@ -241,44 +387,111 @@ export default async function NotasPage({
       <div className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Notas e Recibos</h1>
+          {tab === "emitidas" && (
+            <Link
+              href="/notas/nova"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-verde-mata text-white rounded-lg text-sm font-medium hover:bg-verde-claro transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Nova Nota
+            </Link>
+          )}
+          {tab === "recebidas" && (
+            <Link
+              href="/estoque/importar-xml"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-verde-mata text-white rounded-lg text-sm font-medium hover:bg-verde-claro transition-colors"
+            >
+              <Truck className="w-4 h-4" />
+              Importar XML
+            </Link>
+          )}
+        </div>
+
+        {/* Abas */}
+        <div className="flex gap-1 border-b border-border">
           <Link
-            href="/notas/nova"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-verde-mata text-white rounded-lg text-sm font-medium hover:bg-verde-claro transition-colors"
+            href="/notas"
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === "emitidas"
+                ? "border-verde-mata text-verde-mata"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
           >
-            <Plus className="w-4 h-4" />
-            Nova Nota
+            <FileText className="w-4 h-4" />
+            Emitidas
+          </Link>
+          <Link
+            href="/notas?tab=recebidas"
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === "recebidas"
+                ? "border-verde-mata text-verde-mata"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Truck className="w-4 h-4" />
+            NF-e Recebidas
           </Link>
         </div>
 
-        <form className="flex flex-wrap gap-2" method="GET">
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="Buscar por cliente ou CPF/CNPJ..."
-            className="flex-1 min-w-[200px] max-w-sm px-3.5 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
-          />
-          <select
-            name="tipo"
-            defaultValue={tipo}
-            className="px-3 py-2 rounded-lg border border-border text-sm bg-background focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
-          >
-            <option value="">Todos os tipos</option>
-            <option value="NOTA">Nota Fiscal</option>
-            <option value="RECIBO">Recibo</option>
-          </select>
-          <button type="submit" className="px-4 py-2 bg-verde-mata text-white rounded-lg text-sm hover:bg-verde-claro transition-colors">
-            Buscar
-          </button>
-          {(q || tipo) && (
-            <Link href="/notas" className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
-              Limpar
-            </Link>
-          )}
-        </form>
+        {tab === "emitidas" && (
+          <>
+            <form className="flex flex-wrap gap-2" method="GET">
+              <input
+                name="q"
+                defaultValue={q}
+                placeholder="Buscar por cliente ou CPF/CNPJ..."
+                className="flex-1 min-w-[200px] max-w-sm px-3.5 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
+              />
+              <select
+                name="tipo"
+                defaultValue={tipo}
+                className="px-3 py-2 rounded-lg border border-border text-sm bg-background focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
+              >
+                <option value="">Todos os tipos</option>
+                <option value="NOTA">Nota Fiscal</option>
+                <option value="RECIBO">Recibo</option>
+              </select>
+              <button type="submit" className="px-4 py-2 bg-verde-mata text-white rounded-lg text-sm hover:bg-verde-claro transition-colors">
+                Buscar
+              </button>
+              {(q || tipo) && (
+                <Link href="/notas" className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
+                  Limpar
+                </Link>
+              )}
+            </form>
 
-        <Suspense key={JSON.stringify(params)} fallback={<TabelaSkeleton />}>
-          <NotasTabela params={params} />
-        </Suspense>
+            <Suspense key={`emitidas-${JSON.stringify(params)}`} fallback={<TabelaSkeleton />}>
+              <NotasTabela params={params} />
+            </Suspense>
+          </>
+        )}
+
+        {tab === "recebidas" && (
+          <>
+            <form className="flex flex-wrap gap-2" method="GET">
+              <input type="hidden" name="tab" value="recebidas" />
+              <input
+                name="q"
+                defaultValue={q}
+                placeholder="Buscar por fornecedor, CNPJ ou nº NF-e..."
+                className="flex-1 min-w-[200px] max-w-sm px-3.5 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
+              />
+              <button type="submit" className="px-4 py-2 bg-verde-mata text-white rounded-lg text-sm hover:bg-verde-claro transition-colors">
+                Buscar
+              </button>
+              {q && (
+                <Link href="/notas?tab=recebidas" className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
+                  Limpar
+                </Link>
+              )}
+            </form>
+
+            <Suspense key={`recebidas-${JSON.stringify(params)}`} fallback={<TabelaXmlSkeleton />}>
+              <EntradasXmlTabela params={params} />
+            </Suspense>
+          </>
+        )}
       </div>
     </AppLayout>
   );
