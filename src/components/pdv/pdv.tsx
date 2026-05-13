@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useCarrinho } from "@/stores/carrinho-store";
 import { BuscaProduto } from "./busca-produto";
 import { Carrinho } from "./carrinho";
-import { PainelPagamento } from "./painel-pagamento";
+import { PainelPagamento, PainelPagamentoHandle } from "./painel-pagamento";
 import { finalizarVenda, marcarErroPdf, FinalizarVendaInput } from "@/app/actions/vendas";
 import { toast } from "sonner";
 import { TipoDocumento } from "@prisma/client";
@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 export function PDV() {
   const carrinho = useCarrinho();
   const buscaRef = useRef<HTMLInputElement>(null);
+  const painelRef = useRef<PainelPagamentoHandle>(null);
   const [dialogAberto, setDialogAberto] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [confirmarLimpar, setConfirmarLimpar] = useState(false);
@@ -24,6 +25,10 @@ export function PDV() {
       if (e.key === "F2") {
         e.preventDefault();
         buscaRef.current?.focus();
+      }
+      if (e.key === "F3") {
+        e.preventDefault();
+        painelRef.current?.abrirDesconto();
       }
       if (e.key === "F4" && carrinho.itens.length > 0) {
         e.preventDefault();
@@ -108,7 +113,7 @@ export function PDV() {
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="font-fraunces text-lg font-bold text-verde-mata">PDV — Ponto de Venda</h1>
-          <p className="text-xs text-muted-foreground hidden sm:block">F2 = Buscar · F4 = Pagamento · Esc = Fechar</p>
+          <p className="text-xs text-muted-foreground hidden sm:block">F2 = Buscar · F3 = Desconto · F4 = Finalizar · Esc = Fechar</p>
         </div>
         {carrinho.itens.length > 0 && (
           <button
@@ -131,7 +136,7 @@ export function PDV() {
 
         {/* Coluna direita: pagamento */}
         <div className="flex flex-col gap-3">
-          <PainelPagamento />
+          <PainelPagamento ref={painelRef} />
           <button
             disabled={carrinho.itens.length === 0 || finalizando}
             onClick={() => setDialogAberto(true)}

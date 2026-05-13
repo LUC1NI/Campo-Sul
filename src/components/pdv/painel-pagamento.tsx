@@ -2,8 +2,12 @@
 
 import { useCarrinho, MetodoPagamento } from "@/stores/carrinho-store";
 import { Plus, X, Tag, Banknote, CreditCard, Smartphone } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useImperativeHandle, forwardRef } from "react";
 import { nanoid } from "./utils";
+
+export interface PainelPagamentoHandle {
+  abrirDesconto: () => void;
+}
 
 const METODOS: { value: MetodoPagamento; label: string; icon: React.ReactNode }[] = [
   { value: "DINHEIRO", label: "Dinheiro", icon: <Banknote className="w-3.5 h-3.5" /> },
@@ -15,7 +19,7 @@ const METODOS: { value: MetodoPagamento; label: string; icon: React.ReactNode }[
 const fmt = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export function PainelPagamento() {
+export const PainelPagamento = forwardRef<PainelPagamentoHandle>(function PainelPagamento(_, ref) {
   const {
     pagamentos, adicionarPagamento, removerPagamento,
     setDesconto, desconto, subtotal, total, totalPago, troco,
@@ -25,6 +29,15 @@ export function PainelPagamento() {
   const [valorInput, setValorInput] = useState("");
   const [editandoDesconto, setEditandoDesconto] = useState(false);
   const [descontoInput, setDescontoInput] = useState("");
+  const descontoInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    abrirDesconto() {
+      setDescontoInput(desconto > 0 ? desconto.toFixed(2).replace(".", ",") : "");
+      setEditandoDesconto(true);
+      setTimeout(() => descontoInputRef.current?.focus(), 0);
+    },
+  }));
 
   const falta = Math.max(0, total() - totalPago());
   const isDinheiro = metodoSelecionado === "DINHEIRO";
@@ -153,6 +166,7 @@ export function PainelPagamento() {
             <Tag className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
             <span className="text-xs text-muted-foreground flex-1">Desconto (R$)</span>
             <input
+              ref={descontoInputRef}
               autoFocus
               type="text"
               inputMode="decimal"
@@ -226,4 +240,4 @@ export function PainelPagamento() {
       </div>
     </div>
   );
-}
+});
