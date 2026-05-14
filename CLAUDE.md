@@ -90,17 +90,31 @@ pnpm prisma db seed                   # seed inicial
 - [x] Fase 7: Polimento UI do site institucional
 - [ ] Fase 8: Deploy Vercel + hardening
 
-## Estado atual (2026-05-06)
-Fases 0–7 concluídas. Deploy no Vercel funcionando. 11/11 testes passando.
+## Estado atual (2026-05-14)
+Fases 0–8 concluídas. Deploy no Vercel funcionando. 11/11 testes passando.
 Importação XML NF-e funcionando (SIEG formato 4.00 com bloco IBSCBSTot).
 `/notas/nova` — geração de nota avulsa com opção de descontar ou não o estoque.
+`/notas` — paginação 30 itens/página + filtros por tipo e cliente (já implementado).
 Focus NFe: `src/lib/focusnfe.ts` criado, aguardando token de produção da cliente.
 
-**Pendente para ficar 100% completo (Fase 8):**
-- [ ] Conectar Focus NFe no PDV (emitir NFCe após finalizar venda) e em /notas (status + DANFE oficial)
-- [ ] Paginação + filtros na listagem `/notas` (hoje limita 100 registros)
-- [ ] Variáveis de empresa no Vercel: `EMPRESA_RAZAO_SOCIAL`, `EMPRESA_CNPJ`, `EMPRESA_IE`, `EMPRESA_ENDERECO`, `EMPRESA_FONE` (afetam PDFs)
-- [ ] `FOCUSNFE_TOKEN` + `FOCUSNFE_AMBIENTE=producao` no Vercel quando cliente contratar
+**Auditoria de segurança e performance concluída (2026-05-14):**
+- [x] CSP header adicionado (`next.config.ts`)
+- [x] `processEntities: false` no XML parser (bloqueia XXE/Billion Laughs)
+- [x] `$queryRaw` removido: `numeracao-nf.ts` usa `prisma.counter.update({increment:1})`
+- [x] `$queryRaw` de topProdutos substituído por `itemVenda.groupBy()` no dashboard e relatórios
+- [x] N+1 em `finalizarVenda` eliminado — `findMany` antes do loop
+- [x] Timeout 30s na transação de venda
+- [x] 6 novos índices no schema (MovimentoEstoque.usuarioId, Pagamento.vendaId+metodo, etc.)
+- [x] AbortController na busca de produto (cancela fetch obsoleto)
+- [x] `@prisma/client` removido de Client Components (local type alias)
+- [x] `confirmarImportacaoTxt` padronizada para retornar `{ok, erro}` (sem throw)
+- [x] `suppressHydrationWarning` nos totais do painel de pagamento
+- [x] `<button>` dentro de `<button>` corrigido na busca de produto
+
+**Pendente (bloqueado por cliente):**
+- [ ] Conectar Focus NFe no PDV e em /notas — aguarda `FOCUSNFE_TOKEN` de produção
+- [ ] Variáveis de empresa no Vercel: `EMPRESA_RAZAO_SOCIAL`, `EMPRESA_CNPJ`, `EMPRESA_IE`, `EMPRESA_ENDERECO`, `EMPRESA_FONE`
+- [ ] Aplicar migration das novas indexes: `pnpm prisma migrate dev --name perf_indexes` (fazer no ambiente de dev com DIRECT_DATABASE_URL)
 
 **Focus NFe — variáveis necessárias (.env):**
 - `FOCUSNFE_TOKEN` — token produção

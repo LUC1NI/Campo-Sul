@@ -156,14 +156,17 @@ const confirmarTxtSchema = z.object({
 
 export type ConfirmarImportacaoTxtInput = z.infer<typeof confirmarTxtSchema>;
 
-export async function confirmarImportacaoTxt(input: ConfirmarImportacaoTxtInput) {
+export async function confirmarImportacaoTxt(
+  input: ConfirmarImportacaoTxtInput
+): Promise<{ ok: true; criados: number; atualizados: number } | { ok: false; erro: string }> {
+  try {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "ADMIN") throw new Error("Sem permissão");
+  if (session.user.role !== "ADMIN") return { ok: false, erro: "Sem permissão" };
 
   const data = confirmarTxtSchema.parse(input);
   const itensImportar = data.itens.filter((i) => i.importar);
-  if (itensImportar.length === 0) throw new Error("Selecione ao menos 1 item para importar");
+  if (itensImportar.length === 0) return { ok: false, erro: "Selecione ao menos 1 item para importar" };
 
   let criados = 0;
   let atualizados = 0;
@@ -233,5 +236,8 @@ export async function confirmarImportacaoTxt(input: ConfirmarImportacaoTxtInput)
   );
 
   revalidatePath("/estoque");
-  return { criados, atualizados };
+  return { ok: true, criados, atualizados };
+  } catch (err) {
+    return { ok: false, erro: err instanceof Error ? err.message : "Erro ao importar" };
+  }
 }

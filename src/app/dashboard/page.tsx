@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/app/app-layout";
 import { prisma } from "@/lib/prisma";
 import { formatBRL, formatData, formatDataHora } from "@/lib/format";
 import {
-  ShoppingCart, TrendingUp, AlertTriangle, AlertOctagon,
+  ShoppingCart, TrendingUp, AlertOctagon,
   DollarSign, ArrowUp, ArrowDown, Minus,
 } from "lucide-react";
 import Link from "next/link";

@@ -105,8 +105,12 @@ export default function ImportarTxtPage() {
           importar: !!selecionados[i],
         })),
       });
-      setResultado(res);
-      setStep("sucesso");
+      if (!res.ok) {
+        toast.error(res.erro);
+      } else {
+        setResultado({ criados: res.criados, atualizados: res.atualizados });
+        setStep("sucesso");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao importar");
     } finally {
