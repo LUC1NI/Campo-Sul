@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
       unidadeFracao: true,
       quantidade: true,
       saldoFracionado: true,
+      precoFracao: true,
     },
     take: 8,
     orderBy: { nome: "asc" },

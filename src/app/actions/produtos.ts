@@ -37,6 +37,7 @@ const produtoSchema = z.object({
   podeFracionar: z.boolean().default(false),
   pesoUnidade: z.string().optional().nullable(),
   unidadeFracao: z.nativeEnum(Unidade).optional().nullable(),
+  precoFracao: z.string().optional().nullable(),
   quantidade: z.string().refine((v) => {
     const n = Number(normalizarNumero(v));
     return !isNaN(n) && n >= 0 && n < 10_000_000;
@@ -114,6 +115,7 @@ export async function criarProduto(formData: z.infer<typeof produtoSchema>): Pro
         podeFracionar: data.podeFracionar,
         pesoUnidade: data.podeFracionar && data.pesoUnidade ? normalizarNumero(data.pesoUnidade) : null,
         unidadeFracao: data.podeFracionar ? data.unidadeFracao : null,
+        precoFracao: data.podeFracionar && data.precoFracao ? normalizarNumero(data.precoFracao) : null,
         quantidade: normalizarNumero(data.quantidade),
         quantidadeMinima: normalizarNumero(data.quantidadeMinima),
       },
@@ -161,6 +163,7 @@ export async function atualizarProduto(id: string, formData: z.infer<typeof prod
         podeFracionar: data.podeFracionar,
         pesoUnidade: data.podeFracionar && data.pesoUnidade ? normalizarNumero(data.pesoUnidade) : null,
         unidadeFracao: data.podeFracionar ? data.unidadeFracao : null,
+        precoFracao: data.podeFracionar && data.precoFracao ? normalizarNumero(data.precoFracao) : null,
         quantidadeMinima: normalizarNumero(data.quantidadeMinima),
       },
     });

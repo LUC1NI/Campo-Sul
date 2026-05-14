@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/app/app-layout";
 import { prisma } from "@/lib/prisma";
 import { formatBRL, formatData, formatDataHora } from "@/lib/format";
 import {
-  ShoppingCart, TrendingUp, AlertTriangle,
+  ShoppingCart, TrendingUp, AlertTriangle, AlertOctagon,
   DollarSign, ArrowUp, ArrowDown, Minus,
 } from "lucide-react";
 import Link from "next/link";
@@ -20,7 +20,7 @@ async function getDashboardData() {
     vendasHoje, totalHojeAgg,
     vendasOntem, totalOntemAgg,
     ultimasVendas, produtosAtivos,
-    porMetodo, topProdutos, estoqueCritico,
+    porMetodo, topProdutos, estoqueCritico, estoqueNegativo,
   ] = await Promise.all([
     prisma.venda.count({ where: { createdAt: { gte: inicioHoje, lt: fimHoje }, status: "CONCLUIDA" } }),
     prisma.venda.aggregate({ where: { createdAt: { gte: inicioHoje, lt: fimHoje }, status: "CONCLUIDA" }, _sum: { total: true } }),
@@ -39,32 +39,61 @@ async function getDashboardData() {
       _sum: { valor: true },
       orderBy: { _sum: { valor: "desc" } },
     }),
-    prisma.$queryRaw<{ nome: string; qtd: string; total_val: string }[]>`
-      SELECT iv."nomeProduto" as nome,
-             SUM(iv.quantidade::numeric)::text as qtd,
-             SUM(iv.total::numeric)::text as total_val
-      FROM "ItemVenda" iv
-      JOIN "Venda" v ON v.id = iv."vendaId"
-      WHERE v."createdAt" >= ${inicioHoje} AND v."createdAt" < ${fimHoje}
-        AND v.status = 'CONCLUIDA'
-      GROUP BY iv."nomeProduto"
-      ORDER BY SUM(iv.quantidade::numeric) DESC
-      LIMIT 5
-    `,
-    prisma.$queryRaw<{ id: string; nome: string; quantidade: string; quantidadeMinima: string; unidade: string }[]>`
-      SELECT id, nome, quantidade::text, "quantidadeMinima"::text, unidade::text
-      FROM "Produto"
-      WHERE ativo = true AND "deletedAt" IS NULL
-        AND "quantidadeMinima" > 0
-        AND quantidade <= "quantidadeMinima"
-      ORDER BY (quantidade / NULLIF("quantidadeMinima", 0)) ASC
-      LIMIT 8
-    `,
+    prisma.itemVenda.groupBy({
+      by: ["nomeProduto"],
+      where: { venda: { createdAt: { gte: inicioHoje, lt: fimHoje }, status: "CONCLUIDA" } },
+      _sum: { quantidade: true, total: true },
+      orderBy: { _sum: { quantidade: "desc" } },
+      take: 5,
+    }),
+    prisma.produto.findMany({
+      where: { ativo: true, deletedAt: null, quantidadeMinima: { gt: 0 } },
+      select: { id: true, nome: true, quantidade: true, quantidadeMinima: true, unidade: true },
+      orderBy: { nome: "asc" },
+      take: 50,
+    }),
+    prisma.produto.findMany({
+      where: { ativo: true, deletedAt: null, quantidade: { lt: 0 } },
+      select: { id: true, nome: true, quantidade: true, unidade: true },
+      orderBy: { quantidade: "asc" },
+      take: 8,
+    }),
   ]);
 
   const totalHoje = Number(totalHojeAgg._sum.total ?? 0);
   const totalOntem = Number(totalOntemAgg._sum.total ?? 0);
   const ticketMedio = vendasHoje > 0 ? totalHoje / vendasHoje : 0;
+
+  // Normaliza topProdutos para o formato esperado pela UI
+  const topProdutosNorm = topProdutos.map((p) => ({
+    nome: p.nomeProduto,
+    qtd: String(p._sum.quantidade ?? 0),
+    total_val: String(p._sum.total ?? 0),
+  }));
+
+  // Filtra em JS os que estão abaixo do mínimo (coluna-a-coluna não suportado pelo ORM)
+  const estoqueCriticoFilt = estoqueCritico
+    .filter((p) => Number(p.quantidade) <= Number(p.quantidadeMinima))
+    .sort((a, b) => {
+      const ratioA = Number(a.quantidade) / (Number(a.quantidadeMinima) || 1);
+      const ratioB = Number(b.quantidade) / (Number(b.quantidadeMinima) || 1);
+      return ratioA - ratioB;
+    })
+    .slice(0, 8)
+    .map((p) => ({
+      id: p.id,
+      nome: p.nome,
+      quantidade: String(p.quantidade),
+      quantidadeMinima: String(p.quantidadeMinima),
+      unidade: String(p.unidade),
+    }));
+
+  const estoqueNegativoNorm = estoqueNegativo.map((p) => ({
+    id: p.id,
+    nome: p.nome,
+    quantidade: String(p.quantidade),
+    unidade: String(p.unidade),
+  }));
 
   return {
     vendasHoje, vendasOntem,
@@ -73,8 +102,9 @@ async function getDashboardData() {
     ultimasVendas,
     produtosAtivos,
     porMetodo,
-    topProdutos,
-    estoqueCritico,
+    topProdutos: topProdutosNorm,
+    estoqueCritico: estoqueCriticoFilt,
+    estoqueNegativo: estoqueNegativoNorm,
   };
 }
 
@@ -155,6 +185,7 @@ async function DashboardContent() {
     porMetodo,
     topProdutos,
     estoqueCritico,
+    estoqueNegativo,
   } = await getDashboardData();
 
   return (
@@ -210,22 +241,22 @@ async function DashboardContent() {
           </span>
         </div>
 
-        {/* Estoque crítico */}
-        <div className={`bg-white rounded-xl border p-3 ${estoqueCritico.length > 0 ? "border-yellow-200" : "border-border"}`}>
+        {/* Estoque negativo */}
+        <div className={`bg-white rounded-xl border p-3 ${estoqueNegativo.length > 0 ? "border-red-200" : "border-border"}`}>
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Estoque baixo</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Estoque negativo</span>
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-              estoqueCritico.length > 0 ? "bg-yellow-50 text-yellow-600" : "bg-muted text-muted-foreground"
+              estoqueNegativo.length > 0 ? "bg-red-50 text-red-600" : "bg-muted text-muted-foreground"
             }`}>
-              <AlertTriangle className="w-3.5 h-3.5" />
+              <AlertOctagon className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className={`font-fraunces text-xl font-bold ${estoqueCritico.length > 0 ? "text-yellow-600" : "text-foreground"}`}>
-            {estoqueCritico.length}
+          <div className={`font-fraunces text-xl font-bold ${estoqueNegativo.length > 0 ? "text-red-600" : "text-foreground"}`}>
+            {estoqueNegativo.length}
           </div>
-          {estoqueCritico.length > 0 ? (
-            <Link href="/relatorios" className="text-xs text-yellow-600 hover:underline mt-0.5 block">
-              Ver detalhes →
+          {estoqueNegativo.length > 0 ? (
+            <Link href="/estoque?negativo=1" className="text-xs text-red-600 hover:underline mt-0.5 block">
+              Recontar →
             </Link>
           ) : (
             <span className="text-xs text-muted-foreground mt-0.5 block">tudo ok</span>
@@ -370,6 +401,33 @@ async function DashboardContent() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Linha 4: Estoque negativo */}
+      {estoqueNegativo.length > 0 && (
+        <div className="bg-red-50 rounded-xl border border-red-200">
+          <div className="px-4 py-2.5 border-b border-red-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertOctagon className="w-4 h-4 text-red-600" />
+              <h2 className="font-semibold text-sm text-red-700">Estoque negativo — recontar</h2>
+            </div>
+            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+              {estoqueNegativo.length} produto{estoqueNegativo.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <div className="divide-y divide-red-100">
+            {estoqueNegativo.map((p) => (
+              <div key={p.id} className="px-4 py-2.5 flex items-center justify-between">
+                <Link href={`/estoque/${p.id}`} className="text-sm font-medium text-red-800 hover:underline truncate max-w-[60%]">
+                  {p.nome}
+                </Link>
+                <span className="text-sm font-bold text-red-600 flex-shrink-0 ml-2">
+                  {Number(p.quantidade).toFixed(2)} {UNIDADE_LABEL[p.unidade] ?? p.unidade}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

@@ -87,33 +87,49 @@ async function getData(periodo: Periodo) {
       _sum: { valor: true },
       orderBy: { _sum: { valor: "desc" } },
     }),
-    prisma.$queryRaw<{ nome: string; qtd: string; total_val: string }[]>`
-      SELECT iv."nomeProduto" as nome,
-             SUM(iv.quantidade::numeric)::text as qtd,
-             SUM(iv.total::numeric)::text as total_val
-      FROM "ItemVenda" iv
-      JOIN "Venda" v ON v.id = iv."vendaId"
-      WHERE v."createdAt" >= ${inicio} AND v."createdAt" < ${fim}
-        AND v.status = 'CONCLUIDA'
-      GROUP BY iv."nomeProduto"
-      ORDER BY SUM(iv.total::numeric) DESC
-      LIMIT 8
-    `,
-    prisma.$queryRaw<{ id: string; nome: string; quantidade: string; quantidadeMinima: string; unidade: string }[]>`
-      SELECT id, nome, quantidade::text, "quantidadeMinima"::text, unidade::text
-      FROM "Produto"
-      WHERE ativo = true AND "deletedAt" IS NULL
-        AND "quantidadeMinima" > 0
-        AND quantidade <= "quantidadeMinima"
-      ORDER BY (quantidade / NULLIF("quantidadeMinima", 0)) ASC
-      LIMIT 20
-    `,
+    prisma.itemVenda.groupBy({
+      by: ["nomeProduto"],
+      where: { venda: { createdAt: { gte: inicio, lt: fim }, status: "CONCLUIDA" } },
+      _sum: { quantidade: true, total: true },
+      orderBy: { _sum: { total: "desc" } },
+      take: 8,
+    }),
+    prisma.produto.findMany({
+      where: { ativo: true, deletedAt: null, quantidadeMinima: { gt: 0 } },
+      select: { id: true, nome: true, quantidade: true, quantidadeMinima: true, unidade: true },
+      orderBy: { nome: "asc" },
+      take: 100,
+    }),
   ]);
+
+  const topProdutosNorm = topProdutos.map((p) => ({
+    nome: p.nomeProduto,
+    qtd: String(p._sum.quantidade ?? 0),
+    total_val: String(p._sum.total ?? 0),
+  }));
+
+  const produtosBaixosNorm = produtosBaixos
+    .filter((p) => Number(p.quantidade) <= Number(p.quantidadeMinima))
+    .sort((a, b) => {
+      const ra = Number(a.quantidade) / (Number(a.quantidadeMinima) || 1);
+      const rb = Number(b.quantidade) / (Number(b.quantidadeMinima) || 1);
+      return ra - rb;
+    })
+    .slice(0, 20)
+    .map((p) => ({
+      id: p.id,
+      nome: p.nome,
+      quantidade: String(p.quantidade),
+      quantidadeMinima: String(p.quantidadeMinima),
+      unidade: String(p.unidade),
+    }));
 
   return {
     vendas, total: Number(totalAgg._sum.total ?? 0),
     vendasAnt, totalAnt: Number(totalAntAgg._sum.total ?? 0),
-    porMetodo, topProdutos, produtosBaixos,
+    porMetodo,
+    topProdutos: topProdutosNorm,
+    produtosBaixos: produtosBaixosNorm,
   };
 }
 

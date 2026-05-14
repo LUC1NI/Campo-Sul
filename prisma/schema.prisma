@@ -94,6 +94,7 @@ model Produto {
   podeFracionar  Boolean  @default(false)
   pesoUnidade    Decimal? @db.Decimal(14, 4)
   unidadeFracao  Unidade?
+  precoFracao    Decimal? @db.Decimal(14, 4) // preço por unidade fracionada; null = usa precoVenda/pesoUnidade
 
   // estoque
   quantidade        Decimal @db.Decimal(14, 4) @default(0)
@@ -115,6 +116,7 @@ model Produto {
   @@index([gtin])
   @@index([ativo, deletedAt, nome])
   @@index([categoriaId, ativo])
+  @@index([ativo, deletedAt, quantidadeMinima, quantidade])
 }
 
 model Venda {
@@ -159,6 +161,7 @@ model ItemVenda {
 
   @@index([vendaId])
   @@index([produtoId])
+  @@index([vendaId, produtoId])
 }
 
 model Pagamento {
@@ -169,6 +172,7 @@ model Pagamento {
   valor   Decimal         @db.Decimal(14, 2)
 
   @@index([vendaId])
+  @@index([vendaId, metodo])
 }
 
 model Documento {
@@ -218,6 +222,7 @@ model MovimentoEstoque {
   createdAt   DateTime             @default(now())
 
   @@index([produtoId, createdAt])
+  @@index([usuarioId])
 }
 
 model EntradaXml {
@@ -232,6 +237,9 @@ model EntradaXml {
   importadoPorId String
 
   itens ItemEntradaXml[]
+
+  @@index([importadoPorId])
+  @@index([importadoEm])
 }
 
 model ItemEntradaXml {

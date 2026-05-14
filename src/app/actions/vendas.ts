@@ -38,6 +38,13 @@ export async function finalizarVenda(input: FinalizarVendaInput) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  // Garante que o usuário da sessão ainda existe no banco (sessão JWT pode estar desatualizada)
+  const usuarioAtivo = await prisma.usuario.findUnique({
+    where: { id: session.user.id, ativo: true },
+    select: { id: true },
+  });
+  if (!usuarioAtivo) redirect("/login");
+
   const data = vendaSchema.parse(input);
 
   // Verifica pagamento
@@ -57,10 +64,15 @@ export async function finalizarVenda(input: FinalizarVendaInput) {
     async (tx) => {
       const numeroVenda = await proximoNumero(tx as Parameters<typeof proximoNumero>[0], "VENDA");
 
+      // Busca todos os produtos de uma vez para evitar N+1
+      const produtoIds = data.itens.map((i) => i.produtoId);
+      const produtos = await tx.produto.findMany({ where: { id: { in: produtoIds } } });
+      const produtoMap = new Map(produtos.map((p) => [p.id, p]));
+
       // Processa estoque e cria itens
       const itensVenda = await Promise.all(
         data.itens.map(async (item) => {
-          const produto = await tx.produto.findUnique({ where: { id: item.produtoId } });
+          const produto = produtoMap.get(item.produtoId);
           if (!produto) throw new Error(`Produto ${item.produtoId} não encontrado`);
 
           const { novaQuantidade, novoSaldoFracionado, unidadesFechadasConsumidas } =
@@ -158,7 +170,7 @@ export async function finalizarVenda(input: FinalizarVendaInput) {
 
       return { vendaId: venda.id, numeroVenda, documentoId };
     },
-    { isolationLevel: "Serializable" }
+    { isolationLevel: "Serializable", timeout: 30000, maxWait: 10000 }
   );
 
   return resultado;

@@ -27,6 +27,7 @@ export function parseNfeXml(xmlContent: string): NfeParseResult {
     removeNSPrefix: true,
     parseTagValue: false,
     parseAttributeValue: false,
+    processEntities: false, // bloqueia XXE e Billion Laughs Attack
     isArray: (name: string) => name === "det",
   });
 

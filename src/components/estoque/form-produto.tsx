@@ -40,6 +40,7 @@ const schema = z.object({
   precoVenda: z.string().refine((v) => numeroValido(v) && Number(v.replace(",", ".")) > 0, "Preço de venda precisa ser maior que zero"),
   podeFracionar: z.boolean(),
   pesoUnidade: z.string().optional().nullable(),
+  precoFracao: z.string().optional().nullable(),
   unidadeFracao: z.nativeEnum(Unidade).optional().nullable(),
   quantidade: z.string().refine((v) => !v || (numeroValido(v) && Number(v.replace(",", ".")) >= 0), "Use somente números"),
   quantidadeMinima: z.string().refine((v) => !v || (numeroValido(v) && Number(v.replace(",", ".")) >= 0), "Use somente números"),
@@ -82,6 +83,33 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
   });
 
   const podeFracionar = watch("podeFracionar");
+  const unidade = watch("unidade");
+  const unidadeFracao = watch("unidadeFracao");
+  const pesoUnidade = watch("pesoUnidade");
+  const precoVenda = watch("precoVenda");
+
+  const UNIDADE_CURTA: Record<string, string> = {
+    UN: "un", KG: "kg", L: "L", SACO: "saco", CX: "cx", M: "m",
+  };
+
+  const ue = UNIDADE_CURTA[unidade] ?? unidade;
+  const uf = unidadeFracao ? (UNIDADE_CURTA[unidadeFracao] ?? unidadeFracao) : null;
+
+  const precoHint = (() => {
+    if (!podeFracionar) return `Preço cobrado por ${ue}.`;
+    return `Preço do ${ue} inteiro. O preço por ${uf ?? "unidade fracionada"} é calculado abaixo.`;
+  })();
+
+  const fracaoPreview = (() => {
+    if (!podeFracionar || !unidadeFracao || !pesoUnidade) return null;
+    const pesoNum = Number(pesoUnidade.replace(",", "."));
+    const precoNum = Number(precoVenda?.replace(",", "."));
+    if (!pesoNum) return `Cada ${ue} tem ${pesoUnidade} ${uf} → vendido por ${uf}`;
+    const precoFracStr = precoNum > 0
+      ? ` · preço por ${uf}: R$ ${(precoNum / pesoNum).toFixed(2).replace(".", ",")}`
+      : "";
+    return `Cada ${ue} tem ${pesoUnidade} ${uf} → vendido por ${uf}${precoFracStr}`;
+  })();
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -203,9 +231,9 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
                 />
               </Field>
               <Field
-                label="Venda (R$)"
+                label={podeFracionar ? `Venda por ${ue} (R$)` : "Venda (R$)"}
                 required
-                hint="Preço cobrado."
+                hint={precoHint}
                 error={errors.precoVenda?.message}
               >
                 <input
@@ -277,41 +305,83 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
                   Venda fracionada
                 </label>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                  Marque se o produto também pode ser vendido por peso/volume
-                  (ex.: saco de 25 kg vendido por kg).
+                  O estoque controla em sacos/caixas/etc., mas a venda usa outra unidade.
+                  Ex.: saco de 25 kg vendido por kg; caixa com 12 unidades vendida por unidade.
                 </p>
               </div>
             </div>
 
             {podeFracionar && (
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <Field
-                  label="Peso da unidade"
-                  required
-                  hint="Ex.: 25 (saco de 25 kg)."
-                  error={errors.pesoUnidade?.message}
-                >
-                  <input
-                    {...register("pesoUnidade")}
-                    className={inputCls(!!errors.pesoUnidade)}
-                    placeholder="25"
-                    inputMode="decimal"
-                    autoComplete="off"
-                  />
-                </Field>
-                <Field
-                  label="Unidade fracionada"
-                  required
-                  hint="Ex.: KG."
-                  error={errors.unidadeFracao?.message}
-                >
-                  <select {...register("unidadeFracao")} className={inputCls(!!errors.unidadeFracao)}>
-                    <option value="">Selecione...</option>
-                    {UNIDADES.map((u) => (
-                      <option key={u.value} value={u.value}>{u.label}</option>
-                    ))}
-                  </select>
-                </Field>
+              <div className="pt-1 space-y-3">
+                {/* Fórmula visual: Cada [CX] contém [___] [UN ▾] */}
+                <div className="bg-muted/40 rounded-lg px-3 py-3 space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    Complete a frase abaixo:
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Cada</span>
+                    <span className="text-sm font-semibold text-foreground bg-white border border-border rounded-md px-2.5 py-1.5">
+                      {UNIDADE_CURTA[unidade] ?? unidade}
+                    </span>
+                    <span className="text-sm text-muted-foreground">contém</span>
+                    <input
+                      {...register("pesoUnidade")}
+                      className={`w-16 text-center text-sm font-semibold border rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 transition-all ${
+                        errors.pesoUnidade
+                          ? "border-red-400 bg-red-50 focus:ring-red-200"
+                          : "border-border bg-white focus:ring-verde-mata/30 focus:border-verde-mata"
+                      }`}
+                      placeholder="?"
+                      inputMode="decimal"
+                      autoComplete="off"
+                    />
+                    <select
+                      {...register("unidadeFracao")}
+                      className={`text-sm font-semibold border rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 transition-all ${
+                        errors.unidadeFracao
+                          ? "border-red-400 bg-red-50 focus:ring-red-200"
+                          : "border-border bg-white focus:ring-verde-mata/30 focus:border-verde-mata"
+                      }`}
+                    >
+                      <option value="">unidade?</option>
+                      {UNIDADES.filter((u) => u.value !== unidade).map((u) => (
+                        <option key={u.value} value={u.value}>{u.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {(errors.pesoUnidade || errors.unidadeFracao) && (
+                    <p className="text-xs text-red-600 flex items-center gap-1">
+                      <span>Preencha quantidade e unidade de venda.</span>
+                    </p>
+                  )}
+                </div>
+
+                {fracaoPreview && (
+                  <p className="text-xs text-verde-mata bg-verde-mata/5 border border-verde-mata/20 rounded-lg px-3 py-2 leading-snug">
+                    ✓ {fracaoPreview}
+                  </p>
+                )}
+
+                {podeFracionar && unidadeFracao && (
+                  <Field
+                    label={`Preço por ${uf ?? "fração"} (R$)`}
+                    optional
+                    hint={`Auto-calculado. Preencha só se for diferente (ex.: fracionado é mais caro).`}
+                    error={errors.precoFracao?.message}
+                  >
+                    <input
+                      {...register("precoFracao")}
+                      className={inputCls(!!errors.precoFracao)}
+                      placeholder={(() => {
+                        const pv = Number(precoVenda?.replace(",", "."));
+                        const pu = Number(pesoUnidade?.replace(",", "."));
+                        return pv > 0 && pu > 0 ? (pv / pu).toFixed(2) : "auto";
+                      })()}
+                      inputMode="decimal"
+                      autoComplete="off"
+                    />
+                  </Field>
+                )}
               </div>
             )}
           </section>

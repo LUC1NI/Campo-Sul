@@ -13,16 +13,15 @@ export async function proximoNumero(
   tx: TxClient,
   chave: "VENDA" | "NOTA:1" | "RECIBO:1"
 ): Promise<number> {
-  const resultado = await tx.$queryRaw<{ valor: number }[]>`
-    UPDATE "Counter"
-    SET valor = valor + 1
-    WHERE chave = ${chave}
-    RETURNING valor
-  `;
+  const resultado = await tx.counter.update({
+    where: { chave },
+    data: { valor: { increment: 1 } },
+    select: { valor: true },
+  });
 
-  if (!resultado[0]) {
+  if (!resultado) {
     throw new Error(`Counter "${chave}" não encontrado. Execute o seed.`);
   }
 
-  return resultado[0].valor;
+  return resultado.valor;
 }

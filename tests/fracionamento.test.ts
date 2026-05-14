@@ -26,8 +26,10 @@ describe("calcularFracionamento - produto unitário", () => {
     expect(r.unidadesFechadasConsumidas.toNumber()).toBe(3);
   });
 
-  it("lança erro se estoque insuficiente", () => {
-    expect(() => calcularFracionamento(produtoUn, "11")).toThrow();
+  it("permite venda que negativaria o estoque", () => {
+    const r = calcularFracionamento(produtoUn, "11");
+    expect(r.novaQuantidade.toNumber()).toBe(-1);
+    expect(r.unidadesFechadasConsumidas.toNumber()).toBe(11);
   });
 });
 
@@ -67,9 +69,15 @@ describe("calcularFracionamento - produto fracionável (saco 25kg)", () => {
     expect(r.novoSaldoFracionado.toNumber()).toBe(0);
   });
 
-  it("lança erro se esgota unidades fechadas", () => {
-    // 4 sacos × 25 = 100kg; tentar vender 101kg
-    expect(() => calcularFracionamento(sacoRacao, "101")).toThrow();
+  it("permite venda que esgota e negativaria unidades fechadas", () => {
+    // 4 sacos × 25 = 100kg; vender 101kg → qty=0, saldo=1 (1kg além do estoque)
+    const r101 = calcularFracionamento(sacoRacao, "101");
+    expect(r101.novaQuantidade.toNumber()).toBe(0);
+    expect(r101.novoSaldoFracionado.toNumber()).toBe(1);
+    // vender 125kg (5 sacos completos de 4 disponíveis) → qty=-1, saldo=0
+    const r125 = calcularFracionamento(sacoRacao, "125");
+    expect(r125.novaQuantidade.toNumber()).toBe(-1);
+    expect(r125.novoSaldoFracionado.toNumber()).toBe(0);
   });
 });
 

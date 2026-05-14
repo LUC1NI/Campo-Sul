@@ -2,8 +2,9 @@
 
 import { useCarrinho } from "@/stores/carrinho-store";
 import { Trash2, ShoppingCart, Plus, Minus } from "lucide-react";
-import { Unidade } from "@prisma/client";
 import { useState } from "react";
+
+type Unidade = "UN" | "KG" | "L" | "SACO" | "CX" | "M";
 import { calcularQuantidadePorValor } from "@/lib/fracionamento";
 
 const UNIDADE_LABEL: Record<Unidade, string> = {
@@ -11,7 +12,7 @@ const UNIDADE_LABEL: Record<Unidade, string> = {
 };
 
 export function Carrinho() {
-  const { itens, removerItem, atualizarQuantidade, subtotal, desconto } = useCarrinho();
+  const { itens, removerItem, atualizarQuantidade, atualizarQuantidadePorValor, subtotal, desconto } = useCarrinho();
 
   if (itens.length === 0) {
     return (
@@ -30,10 +31,11 @@ export function Carrinho() {
       <div className="flex-1 overflow-y-auto divide-y divide-border scrollbar-thin">
         {itens.map((item) => (
           <ItemCarrinhoRow
-            key={item.produtoId}
+            key={item.id}
             item={item}
-            onRemover={() => removerItem(item.produtoId)}
-            onAtualizarQtd={(q) => atualizarQuantidade(item.produtoId, q)}
+            onRemover={() => removerItem(item.id)}
+            onAtualizarQtd={(q) => atualizarQuantidade(item.id, q)}
+            onAtualizarQtdPorValor={(q, v) => atualizarQuantidadePorValor(item.id, q, v)}
           />
         ))}
       </div>
@@ -58,20 +60,38 @@ function ItemCarrinhoRow({
   item,
   onRemover,
   onAtualizarQtd,
+  onAtualizarQtdPorValor,
 }: {
   item: import("@/stores/carrinho-store").ItemCarrinho;
   onRemover: () => void;
   onAtualizarQtd: (q: number) => void;
+  onAtualizarQtdPorValor: (q: number, valorReais: number) => void;
 }) {
   const [editandoValor, setEditandoValor] = useState(false);
   const [valorInput, setValorInput] = useState("");
+
+  const isFracionado = item.podeFracionar && item.unidade !== item.unidadeEstoque;
+  const unidadePeso = item.unidade === "KG" || item.unidade === "L" || item.unidade === "M";
+  const podeDigitarReais = isFracionado && unidadePeso;
+
+  // Preview ao vivo da quantidade calculada pelo valor digitado
+  const previewQtd = (() => {
+    if (!editandoValor || !valorInput) return null;
+    const valor = parseFloat(valorInput.replace(",", "."));
+    if (isNaN(valor) || valor <= 0 || item.precoUnitario <= 0) return null;
+    try {
+      return calcularQuantidadePorValor(valor, item.precoUnitario);
+    } catch {
+      return null;
+    }
+  })();
 
   function handleValorConfirm() {
     const valor = parseFloat(valorInput.replace(",", "."));
     if (!isNaN(valor) && valor > 0 && item.precoUnitario > 0) {
       try {
         const qtd = calcularQuantidadePorValor(valor, item.precoUnitario);
-        onAtualizarQtd(qtd.toNumber());
+        onAtualizarQtdPorValor(qtd.toNumber(), valor);
       } catch {
         // ignora
       }
@@ -88,62 +108,86 @@ function ItemCarrinhoRow({
         <p className="text-sm font-medium text-foreground truncate">{item.nome}</p>
         <p className="text-xs text-muted-foreground">
           R$ {item.precoUnitario.toFixed(2).replace(".", ",")} / {UNIDADE_LABEL[item.unidade]}
+          {isFracionado && <span className="ml-1 text-terra/70">• fracionado</span>}
+          {!isFracionado && item.podeFracionar && <span className="ml-1 text-verde-claro/70">• inteiro</span>}
         </p>
+        {item.valorDigitado != null && (
+          <p className="text-xs mt-0.5">
+            <span className="bg-terra/10 text-terra rounded px-1.5 py-0.5 font-medium">
+              R$ {item.valorDigitado.toFixed(2).replace(".", ",")} → {item.quantidade.toFixed(3).replace(".", ",")} {UNIDADE_LABEL[item.unidade]}
+            </span>
+          </p>
+        )}
 
         {/* Controle de quantidade */}
-        <div className="flex items-center gap-2 mt-2">
-          <button
-            onClick={() => onAtualizarQtd(Number((item.quantidade - step).toFixed(4)))}
-            className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors"
-          >
-            <Minus className="w-3 h-3" />
-          </button>
-
-          <input
-            type="number"
-            value={item.quantidade}
-            step={step}
-            min={step}
-            onChange={(e) => onAtualizarQtd(parseFloat(e.target.value) || step)}
-            className="w-16 text-center text-sm border border-border rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-verde-mata"
-          />
-          <span className="text-xs text-muted-foreground">{UNIDADE_LABEL[item.unidade]}</span>
-
-          <button
-            onClick={() => onAtualizarQtd(Number((item.quantidade + step).toFixed(4)))}
-            className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors"
-          >
-            <Plus className="w-3 h-3" />
-          </button>
-
-          {/* Botão "por valor" para produtos fracionáveis */}
-          {item.podeFracionar && (
+        {!editandoValor ? (
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
             <button
-              onClick={() => setEditandoValor(true)}
-              className="text-xs text-verde-claro hover:underline ml-1"
+              onClick={() => onAtualizarQtd(Number((item.quantidade - step).toFixed(4)))}
+              className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors"
             >
-              por R$
+              <Minus className="w-3 h-3" />
             </button>
-          )}
-        </div>
 
-        {editandoValor && (
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-muted-foreground">R$</span>
             <input
-              autoFocus
-              type="text"
-              value={valorInput}
-              onChange={(e) => setValorInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleValorConfirm();
-                if (e.key === "Escape") { setEditandoValor(false); setValorInput(""); }
-              }}
-              onBlur={handleValorConfirm}
-              className="w-20 text-sm border border-verde-mata rounded px-2 py-0.5 focus:outline-none"
-              placeholder="10,00"
+              type="number"
+              value={item.quantidade}
+              step={step}
+              min={step}
+              onChange={(e) => onAtualizarQtd(parseFloat(e.target.value) || step)}
+              className="w-16 text-center text-sm border border-border rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-verde-mata"
             />
-            <span className="text-xs text-muted-foreground">→ qtd automática</span>
+            <span className="text-xs text-muted-foreground">{UNIDADE_LABEL[item.unidade]}</span>
+
+            <button
+              onClick={() => onAtualizarQtd(Number((item.quantidade + step).toFixed(4)))}
+              className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+
+            {podeDigitarReais && (
+              <button
+                onClick={() => setEditandoValor(true)}
+                className="text-xs bg-terra/10 text-terra hover:bg-terra/20 px-2 py-0.5 rounded transition-colors ml-1"
+              >
+                digitar R$
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1 mt-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium">R$</span>
+              <input
+                autoFocus
+                type="text"
+                value={valorInput}
+                onChange={(e) => setValorInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleValorConfirm();
+                  if (e.key === "Escape") { setEditandoValor(false); setValorInput(""); }
+                }}
+                onBlur={handleValorConfirm}
+                className="w-24 text-sm border border-terra rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-terra/30"
+                placeholder="10,00"
+              />
+              <button
+                onClick={() => { setEditandoValor(false); setValorInput(""); }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
+            </div>
+            {previewQtd ? (
+              <span className="text-xs text-terra font-medium">
+                ≈ {previewQtd.toFixed(3).replace(".", ",")} {UNIDADE_LABEL[item.unidade]}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                digite o valor em reais
+              </span>
+            )}
           </div>
         )}
       </div>

@@ -103,6 +103,7 @@ export const PainelPagamento = forwardRef<PainelPagamentoHandle>(function Painel
             onChange={(e) => setValorInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAdicionarDinheiro()}
             placeholder={`R$ ${falta > 0 ? falta.toFixed(2).replace(".", ",") : "0,00"}`}
+            suppressHydrationWarning
             className="flex-1 px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
           />
           <button
@@ -155,7 +156,7 @@ export const PainelPagamento = forwardRef<PainelPagamentoHandle>(function Painel
         {/* Subtotal */}
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Subtotal</span>
-          <span className={desconto > 0 ? "text-muted-foreground line-through text-xs" : "font-medium"}>
+          <span suppressHydrationWarning className={desconto > 0 ? "text-muted-foreground line-through text-xs" : "font-medium"}>
             {fmt(subtotalVal)}
           </span>
         </div>
@@ -209,7 +210,7 @@ export const PainelPagamento = forwardRef<PainelPagamentoHandle>(function Painel
         {/* TOTAL — destaque principal */}
         <div className="flex justify-between items-center bg-verde-mata text-white px-4 py-2.5 rounded-xl">
           <span className="font-bold text-sm uppercase tracking-wide">Total</span>
-          <span className="font-bold text-2xl font-fraunces">{fmt(totalVal)}</span>
+          <span suppressHydrationWarning className="font-bold text-2xl font-fraunces">{fmt(totalVal)}</span>
         </div>
 
         {/* Pago */}
@@ -218,7 +219,7 @@ export const PainelPagamento = forwardRef<PainelPagamentoHandle>(function Painel
             quitado ? "bg-emerald-50 text-emerald-700" : "bg-muted text-muted-foreground"
           }`}>
             <span className="font-medium">Pago</span>
-            <span className="font-semibold">{fmt(totalPagoVal)}</span>
+            <span suppressHydrationWarning className="font-semibold">{fmt(totalPagoVal)}</span>
           </div>
         )}
 
@@ -226,7 +227,7 @@ export const PainelPagamento = forwardRef<PainelPagamentoHandle>(function Painel
         {falta > 0.009 && totalPagoVal > 0 && (
           <div className="flex justify-between items-center px-4 py-2 rounded-xl bg-red-50 border border-red-200">
             <span className="font-bold text-red-600 text-sm">Falta</span>
-            <span className="font-bold text-red-600 text-xl font-fraunces">{fmt(falta)}</span>
+            <span suppressHydrationWarning className="font-bold text-red-600 text-xl font-fraunces">{fmt(falta)}</span>
           </div>
         )}
 
@@ -234,7 +235,7 @@ export const PainelPagamento = forwardRef<PainelPagamentoHandle>(function Painel
         {trocoVal > 0.009 && (
           <div className="flex justify-between items-center px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
             <span className="font-bold text-emerald-600 text-sm">Troco</span>
-            <span className="font-bold text-emerald-600 text-xl font-fraunces">{fmt(trocoVal)}</span>
+            <span suppressHydrationWarning className="font-bold text-emerald-600 text-xl font-fraunces">{fmt(trocoVal)}</span>
           </div>
         )}
       </div>

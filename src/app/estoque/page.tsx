@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/app/app-layout";
 import { prisma } from "@/lib/prisma";
 import { formatBRL, formatarQuantidade } from "@/lib/format";
 import Link from "next/link";
-import { Plus, Upload, Package, AlertTriangle, Tag, ArchiveX, Pencil } from "lucide-react";
+import { Plus, Upload, Package, AlertTriangle, AlertOctagon, Tag, ArchiveX, Pencil } from "lucide-react";
 import { Unidade } from "@prisma/client";
 import { BotaoDesativar } from "./_botao-desativar";
 import { BotaoReativar } from "./_botao-reativar";
@@ -29,6 +29,7 @@ const selectProduto = {
   pesoUnidade: true,
   unidadeFracao: true,
   quantidade: true,
+  saldoFracionado: true,
   quantidadeMinima: true,
   deletedAt: true,
   categoria: { select: { id: true, nome: true } },
@@ -44,6 +45,7 @@ type ProdutoRow = {
   pesoUnidade: unknown;
   unidadeFracao: Unidade | null;
   quantidade: unknown;
+  saldoFracionado: unknown;
   quantidadeMinima: unknown;
   deletedAt: Date | null;
   categoria: { id: string; nome: string } | null;
@@ -211,13 +213,15 @@ async function TabelaAtivos({ params }: { params: PageParams }) {
               </td></tr>
             ) : (
               produtos.map((p) => {
-                const baixo = Number(p.quantidade) <= Number(p.quantidadeMinima) && Number(p.quantidadeMinima) > 0;
+                const negativo = Number(p.quantidade) < 0;
+                const baixo = !negativo && Number(p.quantidade) <= Number(p.quantidadeMinima) && Number(p.quantidadeMinima) > 0;
                 return (
-                  <tr key={p.id} className="hover:bg-muted/30 transition-colors">
+                  <tr key={p.id} className={`hover:bg-muted/30 transition-colors ${negativo ? "bg-red-50/40" : ""}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-foreground">{p.nome}</span>
                         {p.podeFracionar && <span className="text-xs bg-bege text-terra px-1.5 py-0.5 rounded">fracionável</span>}
+                        {negativo && <AlertOctagon className="w-3.5 h-3.5 text-red-500" aria-label="Estoque negativo — recontar" />}
                         {baixo && <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" aria-label="Estoque baixo" />}
                       </div>
                       <div className="text-xs text-muted-foreground">{p.codigo}</div>
@@ -229,8 +233,13 @@ async function TabelaAtivos({ params }: { params: PageParams }) {
                         <span className="text-xs ml-1 text-muted-foreground/60">(vende em {UNIDADE_LABEL[p.unidadeFracao]})</span>
                       )}
                     </td>
-                    <td className={`px-4 py-3 text-right font-medium ${baixo ? "text-yellow-600" : "text-foreground"}`}>
+                    <td className={`px-4 py-3 text-right font-medium ${negativo ? "text-red-600 font-bold" : baixo ? "text-yellow-600" : "text-foreground"}`}>
                       {formatarQuantidade(Number(p.quantidade), p.unidade, p.podeFracionar)} {UNIDADE_LABEL[p.unidade]}
+                      {p.podeFracionar && p.pesoUnidade != null && p.unidadeFracao && (
+                        <span className="block text-xs font-normal text-muted-foreground">
+                          {(Number(p.quantidade) * Number(p.pesoUnidade as string) - Number(p.saldoFracionado as string)).toFixed(0)} {UNIDADE_LABEL[p.unidadeFracao]}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-verde-mata">
                       {formatBRL(Number(p.precoVenda))}

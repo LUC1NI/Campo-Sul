@@ -3,16 +3,18 @@ import { persist } from "zustand/middleware";
 import { Unidade } from "@prisma/client";
 
 export interface ItemCarrinho {
+  id: string; // único por linha do carrinho — mesmo produto pode ter 2 linhas (inteiro + fracionado)
   produtoId: string;
   nome: string;
   codigo: string;
-  unidade: Unidade; // unidade do item no carrinho (pode ser fracao)
+  unidade: Unidade;
   unidadeEstoque: Unidade;
-  precoUnitario: number; // preço por unidade de venda (ex: por kg)
-  quantidade: number; // quantidade na unidade de venda
+  precoUnitario: number;
+  quantidade: number;
   podeFracionar: boolean;
   pesoUnidade: number | null;
   subtotal: number;
+  valorDigitado?: number; // R$ digitado manualmente (ex: "R$ 5,00 → 2,500 kg")
 }
 
 export type MetodoPagamento = "DINHEIRO" | "DEBITO" | "CREDITO" | "PIX";
@@ -29,9 +31,11 @@ interface CarrinhoState {
   pagamentos: PagamentoCarrinho[];
 
   // Actions
-  adicionarItem: (item: Omit<ItemCarrinho, "subtotal">) => void;
-  removerItem: (produtoId: string) => void;
-  atualizarQuantidade: (produtoId: string, quantidade: number) => void;
+  adicionarItem: (item: Omit<ItemCarrinho, "id" | "subtotal">) => void;
+  removerItem: (id: string) => void;
+  atualizarQuantidade: (id: string, quantidade: number) => void;
+  atualizarQuantidadePorValor: (id: string, quantidade: number, valorReais: number) => void;
+  atualizarPreco: (id: string, preco: number) => void;
   setDesconto: (valor: number) => void;
   adicionarPagamento: (pagamento: PagamentoCarrinho) => void;
   removerPagamento: (id: string) => void;
@@ -52,44 +56,57 @@ export const useCarrinho = create<CarrinhoState>()(
       pagamentos: [],
 
       adicionarItem: (item) => {
+        const id = `${item.produtoId}-${item.unidade}-${Date.now()}`;
         set((state) => {
-          const existente = state.itens.find((i) => i.produtoId === item.produtoId);
+          // mesma linha (mesmo produto + mesma unidade): soma
+          const existente = state.itens.find(
+            (i) => i.produtoId === item.produtoId && i.unidade === item.unidade
+          );
           if (existente) {
             return {
               itens: state.itens.map((i) =>
-                i.produtoId === item.produtoId
-                  ? {
-                      ...i,
-                      quantidade: i.quantidade + item.quantidade,
-                      subtotal: (i.quantidade + item.quantidade) * i.precoUnitario,
-                    }
+                i.id === existente.id
+                  ? { ...i, quantidade: i.quantidade + item.quantidade, subtotal: (i.quantidade + item.quantidade) * i.precoUnitario }
                   : i
               ),
             };
           }
-          return {
-            itens: [
-              ...state.itens,
-              { ...item, subtotal: item.quantidade * item.precoUnitario },
-            ],
-          };
+          return { itens: [...state.itens, { ...item, id, subtotal: item.quantidade * item.precoUnitario }] };
         });
       },
 
-      removerItem: (produtoId) => {
-        set((state) => ({ itens: state.itens.filter((i) => i.produtoId !== produtoId) }));
+      removerItem: (id) => {
+        set((state) => ({ itens: state.itens.filter((i) => i.id !== id) }));
       },
 
-      atualizarQuantidade: (produtoId, quantidade) => {
+      atualizarQuantidade: (id, quantidade) => {
         if (quantidade <= 0) {
-          get().removerItem(produtoId);
+          get().removerItem(id);
           return;
         }
         set((state) => ({
           itens: state.itens.map((i) =>
-            i.produtoId === produtoId
-              ? { ...i, quantidade, subtotal: quantidade * i.precoUnitario }
-              : i
+            i.id === id ? { ...i, quantidade, subtotal: quantidade * i.precoUnitario, valorDigitado: undefined } : i
+          ),
+        }));
+      },
+
+      atualizarQuantidadePorValor: (id, quantidade, valorReais) => {
+        if (quantidade <= 0) {
+          get().removerItem(id);
+          return;
+        }
+        set((state) => ({
+          itens: state.itens.map((i) =>
+            i.id === id ? { ...i, quantidade, subtotal: quantidade * i.precoUnitario, valorDigitado: valorReais } : i
+          ),
+        }));
+      },
+
+      atualizarPreco: (id, preco) => {
+        set((state) => ({
+          itens: state.itens.map((i) =>
+            i.id === id ? { ...i, precoUnitario: preco, subtotal: i.quantidade * preco } : i
           ),
         }));
       },
