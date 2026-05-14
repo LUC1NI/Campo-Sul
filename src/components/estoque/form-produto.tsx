@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useEffect, useRef } from "react";
 import { Unidade, Categoria } from "@prisma/client";
 import { Loader2, AlertCircle } from "lucide-react";
 
@@ -70,6 +71,7 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProdutoFormData>({
     resolver: zodResolver(schema),
@@ -87,6 +89,18 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
   const unidadeFracao = watch("unidadeFracao");
   const pesoUnidade = watch("pesoUnidade");
   const precoVenda = watch("precoVenda");
+
+  // auto-preenche precoFracao com precoVenda/pesoUnidade, respeitando edição manual
+  const fracaoEditadaManualmente = useRef(false);
+  useEffect(() => {
+    if (!podeFracionar) { fracaoEditadaManualmente.current = false; return; }
+    if (fracaoEditadaManualmente.current) return;
+    const pv = Number(String(precoVenda ?? "").replace(",", "."));
+    const pu = Number(String(pesoUnidade ?? "").replace(",", "."));
+    if (pv > 0 && pu > 0) {
+      setValue("precoFracao", (pv / pu).toFixed(2).replace(".", ","), { shouldValidate: false });
+    }
+  }, [podeFracionar, precoVenda, pesoUnidade, setValue]);
 
   const UNIDADE_CURTA: Record<string, string> = {
     UN: "un", KG: "kg", L: "L", SACO: "saco", CX: "cx", M: "m",
@@ -365,18 +379,15 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
                 {podeFracionar && unidadeFracao && (
                   <Field
                     label={`Preço por ${uf ?? "fração"} (R$)`}
-                    optional
-                    hint={`Auto-calculado. Preencha só se for diferente (ex.: fracionado é mais caro).`}
+                    hint={`Calculado automaticamente. Edite se o preço fracionado for diferente.`}
                     error={errors.precoFracao?.message}
                   >
                     <input
-                      {...register("precoFracao")}
+                      {...register("precoFracao", {
+                        onChange: () => { fracaoEditadaManualmente.current = true; },
+                      })}
                       className={inputCls(!!errors.precoFracao)}
-                      placeholder={(() => {
-                        const pv = Number(precoVenda?.replace(",", "."));
-                        const pu = Number(pesoUnidade?.replace(",", "."));
-                        return pv > 0 && pu > 0 ? (pv / pu).toFixed(2) : "auto";
-                      })()}
+                      placeholder="0,00"
                       inputMode="decimal"
                       autoComplete="off"
                     />
