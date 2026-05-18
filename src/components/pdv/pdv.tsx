@@ -73,7 +73,12 @@ export function PDV() {
           nomeCliente,
         };
 
-        const resultado = await finalizarVenda(input);
+        const r = await finalizarVenda(input);
+        if (!r.ok) {
+          toast.error(r.erro);
+          return;
+        }
+        const resultado = r.data;
         toast.success(`Venda #${resultado.numeroVenda} concluída!`);
 
         if (resultado.documentoId) {
@@ -98,8 +103,6 @@ export function PDV() {
         carrinho.limparCarrinho();
         setDialogAberto(false);
         buscaRef.current?.focus();
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Erro ao finalizar venda");
       } finally {
         setFinalizando(false);
       }

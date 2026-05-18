@@ -1,12 +1,15 @@
 "use server";
 
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Unidade } from "@prisma/client";
 import { parseNfeXml } from "@/lib/nfe-xml-parser";
+import {
+  requireActiveUser,
+  requireAdmin,
+  runAction,
+} from "@/lib/auth-helpers";
 
 function mapUnidade(uCom: string): Unidade {
   const u = uCom.toUpperCase().trim();
@@ -40,13 +43,12 @@ export interface XmlPreview {
   itens: ItemPreview[];
 }
 
-const MAX_XML_BYTES = 5 * 1024 * 1024; // 5 MB — NF-e raramente passa de 1 MB
+const MAX_XML_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export async function parsearXml(
   xmlContent: string
 ): Promise<{ ok: true; data: XmlPreview } | { ok: false; erro: string }> {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  await requireActiveUser();
 
   if (typeof xmlContent !== "string" || xmlContent.length === 0) {
     return { ok: false, erro: "XML vazio" };
@@ -63,35 +65,33 @@ export async function parsearXml(
       select: { id: true },
     });
 
-    const itens: ItemPreview[] = await Promise.all(
-      parsed.itens.map(async (item) => {
-        let produtoId: string | null = null;
-        let produtoNome: string | null = null;
+    // Match em UMA query — pega todos os produtos com GTIN listado de uma vez
+    const gtinsValidos = parsed.itens
+      .map((i) => i.gtin)
+      .filter((g): g is string => g !== null && g.length > 0);
 
-        if (item.gtin) {
-          const produto = await prisma.produto.findFirst({
-            where: { gtin: item.gtin, ativo: true },
-            select: { id: true, nome: true },
-          });
-          if (produto) {
-            produtoId = produto.id;
-            produtoNome = produto.nome;
-          }
-        }
+    const matches = gtinsValidos.length
+      ? await prisma.produto.findMany({
+          where: { gtin: { in: gtinsValidos }, ativo: true },
+          select: { id: true, nome: true, gtin: true },
+        })
+      : [];
+    const matchMap = new Map(matches.map((p) => [p.gtin!, p]));
 
-        return {
-          gtin: item.gtin,
-          descricao: item.descricao,
-          unidadeNfe: item.unidadeComercial,
-          quantidade: item.quantidade,
-          valorUnitario: item.valorUnitario,
-          valorTotal: item.valorTotal,
-          produtoId,
-          produtoNome,
-          unidadeMapeada: mapUnidade(item.unidadeComercial),
-        };
-      })
-    );
+    const itens: ItemPreview[] = parsed.itens.map((item) => {
+      const match = item.gtin ? matchMap.get(item.gtin) : null;
+      return {
+        gtin: item.gtin,
+        descricao: item.descricao,
+        unidadeNfe: item.unidadeComercial,
+        quantidade: item.quantidade,
+        valorUnitario: item.valorUnitario,
+        valorTotal: item.valorTotal,
+        produtoId: match?.id ?? null,
+        produtoNome: match?.nome ?? null,
+        unidadeMapeada: mapUnidade(item.unidadeComercial),
+      };
+    });
 
     return {
       ok: true,
@@ -106,17 +106,18 @@ export async function parsearXml(
       },
     };
   } catch (err) {
+    console.error("[xml] parseError", err);
     return {
       ok: false,
-      erro: err instanceof Error ? err.message : "Erro ao processar XML",
+      erro: err instanceof Error ? err.message.slice(0, 200) : "Erro ao processar XML",
     };
   }
 }
 
 const itemConfirmSchema = z.object({
   gtin: z.string().nullable(),
-  descricao: z.string(),
-  unidadeNfe: z.string(),
+  descricao: z.string().min(1).max(300),
+  unidadeNfe: z.string().max(20),
   quantidade: z.string(),
   valorUnitario: z.string(),
   valorTotal: z.string(),
@@ -127,13 +128,13 @@ const itemConfirmSchema = z.object({
 });
 
 const confirmarSchema = z.object({
-  chaveAcesso: z.string().min(1),
-  numeroNf: z.string(),
-  cnpjEmitente: z.string(),
-  nomeEmitente: z.string(),
-  valorTotal: z.string(),
-  xmlOriginal: z.string(),
-  itens: z.array(itemConfirmSchema).min(1),
+  chaveAcesso: z.string().min(40).max(48),
+  numeroNf: z.string().max(20),
+  cnpjEmitente: z.string().max(20),
+  nomeEmitente: z.string().max(200),
+  valorTotal: z.string().max(20),
+  xmlOriginal: z.string().max(MAX_XML_BYTES),
+  itens: z.array(itemConfirmSchema).min(1).max(500),
 });
 
 export type ConfirmarImportacaoInput = z.infer<typeof confirmarSchema>;
@@ -141,24 +142,17 @@ export type ConfirmarImportacaoInput = z.infer<typeof confirmarSchema>;
 export async function confirmarImportacaoXml(
   input: ConfirmarImportacaoInput
 ): Promise<{ ok: true; novos: number; atualizados: number } | { ok: false; erro: string }> {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
-
-  try {
-    if (session.user.role !== "ADMIN") return { ok: false, erro: "Sem permissão" };
-
+  const r = await runAction("confirmarImportacaoXml", async () => {
+    const user = await requireAdmin();
     const data = confirmarSchema.parse(input);
 
     const existente = await prisma.entradaXml.findUnique({
       where: { chaveAcesso: data.chaveAcesso },
       select: { id: true },
     });
-    if (existente) return { ok: false, erro: "Esta NF-e já foi importada anteriormente" };
+    if (existente) throw new Error("Esta NF-e já foi importada anteriormente.");
 
-    let novos = 0;
-    let atualizados = 0;
-
-    await prisma.$transaction(
+    const { novos, atualizados } = await prisma.$transaction(
       async (tx) => {
         const entrada = await tx.entradaXml.create({
           data: {
@@ -168,84 +162,118 @@ export async function confirmarImportacaoXml(
             nomeEmitente: data.nomeEmitente,
             valorTotal: data.valorTotal,
             xmlOriginal: data.xmlOriginal,
-            importadoPorId: session.user.id,
+            importadoPorId: user.id,
           },
         });
 
-        for (let idx = 0; idx < data.itens.length; idx++) {
-          const item = data.itens[idx];
-          let produtoId: string;
-          let criouProduto = false;
+        // --- 1. Criação em lote dos produtos novos ---
+        // O Prisma createMany não retorna IDs, então criamos um a um (mas em
+        // paralelo — não bloqueia entre si). Para preço unitário/categoria
+        // diferentes por item, esta é a forma correta.
+        const novosItens = data.itens
+          .map((item, idx) => ({ item, idx }))
+          .filter(({ item }) => !item.produtoId);
 
-          if (item.produtoId) {
-            produtoId = item.produtoId;
-            atualizados++;
-          } else {
+        const idsNovos = await Promise.all(
+          novosItens.map(async ({ item, idx }) => {
             const codigo = `IMP-${data.chaveAcesso.slice(-8)}-${String(idx + 1).padStart(3, "0")}`;
             const precoVenda = item.precoVenda ?? item.valorUnitario;
-
-            const novo = await tx.produto.create({
+            const criado = await tx.produto.create({
               data: {
                 codigo,
                 gtin: item.gtin ?? null,
-                nome: item.descricao,
+                nome: item.descricao.slice(0, 200),
                 unidade: item.unidadeMapeada,
                 precoCusto: item.valorUnitario,
                 precoVenda,
                 categoriaId: item.categoriaId ?? null,
                 quantidade: "0",
               },
+              select: { id: true },
             });
-            produtoId = novo.id;
-            criouProduto = true;
-            novos++;
-          }
+            return { idx, produtoId: criado.id };
+          })
+        );
+        const novoIdPorIdx = new Map(idsNovos.map((x) => [x.idx, x.produtoId]));
 
-          const produto = await tx.produto.findUniqueOrThrow({ where: { id: produtoId } });
-          const novaQtd = (Number(produto.quantidade) + Number(item.quantidade)).toFixed(4);
+        // --- 2. Resolve produtoId final + busca estoque atual de TODOS de uma vez ---
+        const itensComProduto = data.itens.map((item, idx) => ({
+          ...item,
+          produtoId: item.produtoId ?? novoIdPorIdx.get(idx)!,
+          criouProduto: !item.produtoId,
+        }));
 
-          await tx.produto.update({
-            where: { id: produtoId },
-            data: {
-              quantidade: novaQtd,
-              ...(criouProduto ? { precoCusto: item.valorUnitario } : {}),
-            },
-          });
+        const produtoIdsTodos = itensComProduto.map((i) => i.produtoId);
+        const produtosAtuais = await tx.produto.findMany({
+          where: { id: { in: produtoIdsTodos } },
+          select: { id: true, quantidade: true },
+        });
+        const qtdAtualPorId = new Map(
+          produtosAtuais.map((p) => [p.id, Number(p.quantidade)])
+        );
 
-          await tx.movimentoEstoque.create({
-            data: {
-              produtoId,
-              tipo: "ENTRADA_XML",
-              quantidade: item.quantidade,
-              saldoApos: novaQtd,
-              precoCusto: item.valorUnitario,
-              referenciaId: entrada.id,
-              observacao: `NF-e ${data.numeroNf} — ${data.nomeEmitente}`,
-              usuarioId: session.user.id,
-            },
-          });
-
-          await tx.itemEntradaXml.create({
-            data: {
-              entradaId: entrada.id,
-              produtoId,
-              gtin: item.gtin ?? null,
-              descricao: item.descricao,
-              quantidade: item.quantidade,
-              valorUnitario: item.valorUnitario,
-              valorTotal: item.valorTotal,
-              criouProduto,
-            },
-          });
+        // --- 3. Calcula novas quantidades agregadas (caso o mesmo produto
+        //     apareça em vários itens da NF-e, soma todas) ---
+        const ajustePorProduto = new Map<string, number>();
+        for (const it of itensComProduto) {
+          const atual = ajustePorProduto.get(it.produtoId) ?? qtdAtualPorId.get(it.produtoId) ?? 0;
+          ajustePorProduto.set(it.produtoId, atual + Number(it.quantidade));
         }
+
+        // --- 4. Atualiza saldos em paralelo ---
+        await Promise.all(
+          Array.from(ajustePorProduto.entries()).map(([produtoId, novaQtd]) =>
+            tx.produto.update({
+              where: { id: produtoId },
+              data: { quantidade: novaQtd.toFixed(4) },
+            })
+          )
+        );
+
+        // --- 5. Movimentos de estoque e itens da entrada em createMany ---
+        await tx.movimentoEstoque.createMany({
+          data: itensComProduto.map((it) => {
+            // saldoApos = quantidade final acumulada (mesma para todos os movs
+            // do mesmo produto naquela importação — aceitável; é log)
+            const saldoApos = ajustePorProduto.get(it.produtoId)!;
+            return {
+              produtoId: it.produtoId,
+              tipo: "ENTRADA_XML" as const,
+              quantidade: it.quantidade,
+              saldoApos: saldoApos.toFixed(4),
+              precoCusto: it.valorUnitario,
+              referenciaId: entrada.id,
+              observacao: `NF-e ${data.numeroNf} — ${data.nomeEmitente}`.slice(0, 200),
+              usuarioId: user.id,
+            };
+          }),
+        });
+
+        await tx.itemEntradaXml.createMany({
+          data: itensComProduto.map((it) => ({
+            entradaId: entrada.id,
+            produtoId: it.produtoId,
+            gtin: it.gtin ?? null,
+            descricao: it.descricao,
+            quantidade: it.quantidade,
+            valorUnitario: it.valorUnitario,
+            valorTotal: it.valorTotal,
+            criouProduto: it.criouProduto,
+          })),
+        });
+
+        const novosCount = idsNovos.length;
+        const atualizadosCount = data.itens.length - novosCount;
+        return { novos: novosCount, atualizados: atualizadosCount };
       },
       { isolationLevel: "Serializable", timeout: 30000, maxWait: 10000 }
     );
 
     revalidatePath("/estoque");
-    return { ok: true, novos, atualizados };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Erro ao importar NF-e";
-    return { ok: false, erro: msg };
-  }
+    revalidatePath("/notas");
+    return { novos, atualizados };
+  });
+
+  if (r.ok) return { ok: true, novos: r.data.novos, atualizados: r.data.atualizados };
+  return { ok: false, erro: r.erro };
 }

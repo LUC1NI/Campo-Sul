@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { limparTentativasAntigas } from "@/lib/rate-limit";
 
 // Vercel injeta automaticamente Authorization: Bearer <CRON_SECRET> nas chamadas de cron.
 // Em invocações manuais, passe o mesmo header.
@@ -40,6 +41,7 @@ export async function GET(req: NextRequest) {
     vendasCompactadas: number;
     itensVendaRemovidos: number;
     pagamentosRemovidos: number;
+    loginAttemptsRemovidos: number;
     duracaoMs: number;
     executadoEm: string;
   } = {
@@ -47,6 +49,7 @@ export async function GET(req: NextRequest) {
     vendasCompactadas: 0,
     itensVendaRemovidos: 0,
     pagamentosRemovidos: 0,
+    loginAttemptsRemovidos: 0,
     duracaoMs: 0,
     executadoEm: new Date().toISOString(),
   };
@@ -91,6 +94,9 @@ export async function GET(req: NextRequest) {
         return count;
       });
     }
+
+    // ── 3. Limpar LoginAttempt > 7 dias ──────────────────────────────────────
+    log.loginAttemptsRemovidos = await limparTentativasAntigas();
 
     log.duracaoMs = Date.now() - inicio;
 

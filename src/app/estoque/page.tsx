@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { formatBRL, formatarQuantidade } from "@/lib/format";
 import Link from "next/link";
 import { Plus, Upload, Package, AlertTriangle, AlertOctagon, Tag, ArchiveX, Pencil } from "lucide-react";
-import { Unidade } from "@prisma/client";
+import { Unidade, Prisma } from "@prisma/client";
 import { BotaoDesativar } from "./_botao-desativar";
 import { BotaoReativar } from "./_botao-reativar";
 import { FiltrosEstoque } from "./_filtros-estoque";
@@ -76,16 +76,36 @@ async function getProdutos(params: {
   };
 
   if (baixo) {
-    const todos = await prisma.produto.findMany({
-      where: { ...baseWhere, quantidadeMinima: { gt: 0 } },
-      select: selectProduto,
-      orderBy: { nome: "asc" },
-      take: 500,
-    });
-    const filtrados = todos.filter(
-      (p) => Number(p.quantidade) <= Number(p.quantidadeMinima)
+    // Filtro coluna-a-coluna não suportado pelo ORM — usa SQL parametrizado.
+    // Seguro: todos os parâmetros são passados via $queryRaw template literal.
+    const ids = await prisma.$queryRaw<{ id: string }[]>(
+      Prisma.sql`
+        SELECT id FROM "Produto"
+        WHERE "ativo" = true
+          AND "deletedAt" IS NULL
+          AND "quantidadeMinima" > 0
+          AND "quantidade" <= "quantidadeMinima"
+          ${q ? Prisma.sql`AND ("nome" ILIKE ${"%" + q + "%"} OR "codigo" ILIKE ${"%" + q + "%"})` : Prisma.empty}
+          ${categoria ? Prisma.sql`AND "categoriaId" = ${categoria}` : Prisma.empty}
+          ${unidade ? Prisma.sql`AND "unidade"::text = ${unidade}` : Prisma.empty}
+          ${fracionavel ? Prisma.sql`AND "podeFracionar" = true` : Prisma.empty}
+        ORDER BY ("quantidade" / NULLIF("quantidadeMinima", 0)) ASC
+        LIMIT 500
+      `
     );
-    return { produtos: filtrados as ProdutoRow[], total: filtrados.length, paginas: 1 };
+    if (ids.length === 0) {
+      return { produtos: [] as ProdutoRow[], total: 0, paginas: 1 };
+    }
+
+    const produtos = await prisma.produto.findMany({
+      where: { id: { in: ids.map((r) => r.id) } },
+      select: selectProduto,
+    });
+    // Preserva a ordem do SQL
+    const ordem = new Map(ids.map((r, i) => [r.id, i]));
+    produtos.sort((a, b) => (ordem.get(a.id) ?? 0) - (ordem.get(b.id) ?? 0));
+
+    return { produtos: produtos as ProdutoRow[], total: produtos.length, paginas: 1 };
   }
 
   const [produtos, total] = await Promise.all([

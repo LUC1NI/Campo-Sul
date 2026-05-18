@@ -28,18 +28,19 @@ export function CategoriasClient({ categorias: inicial }: CategoriasClientProps)
     const nome = novaCategoria.trim();
     if (!nome) return;
     startTransition(async () => {
-      try {
-        const cat = await criarCategoria(nome);
-        setLista((prev) =>
-          [...prev, { ...cat, _count: { produtos: 0 } }].sort((a, b) =>
-            a.nome.localeCompare(b.nome)
-          )
-        );
-        setNovaCategoria("");
-        toast.success(`Categoria "${nome}" criada`);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Erro ao criar categoria");
+      const r = await criarCategoria(nome);
+      if (!r.ok) {
+        toast.error(r.erro);
+        return;
       }
+      const cat = r.data;
+      setLista((prev) =>
+        [...prev, { ...cat, _count: { produtos: 0 } }].sort((a, b) =>
+          a.nome.localeCompare(b.nome)
+        )
+      );
+      setNovaCategoria("");
+      toast.success(`Categoria "${nome}" criada`);
     });
   }
 
@@ -52,18 +53,18 @@ export function CategoriasClient({ categorias: inicial }: CategoriasClientProps)
     const nome = editandoNome.trim();
     if (!nome) return;
     startTransition(async () => {
-      try {
-        await renomearCategoria(id, nome);
-        setLista((prev) =>
-          prev
-            .map((c) => (c.id === id ? { ...c, nome } : c))
-            .sort((a, b) => a.nome.localeCompare(b.nome))
-        );
-        setEditandoId(null);
-        toast.success("Categoria renomeada");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Erro ao renomear");
+      const r = await renomearCategoria(id, nome);
+      if (!r.ok) {
+        toast.error(r.erro);
+        return;
       }
+      setLista((prev) =>
+        prev
+          .map((c) => (c.id === id ? { ...c, nome } : c))
+          .sort((a, b) => a.nome.localeCompare(b.nome))
+      );
+      setEditandoId(null);
+      toast.success("Categoria renomeada");
     });
   }
 
@@ -76,13 +77,13 @@ export function CategoriasClient({ categorias: inicial }: CategoriasClientProps)
     const { id, nome } = confirmar;
     setConfirmar(null);
     startTransition(async () => {
-      try {
-        await excluirCategoria(id);
-        setLista((prev) => prev.filter((c) => c.id !== id));
-        toast.success(`Categoria "${nome}" excluída`);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Erro ao excluir");
+      const r = await excluirCategoria(id);
+      if (!r.ok) {
+        toast.error(r.erro);
+        return;
       }
+      setLista((prev) => prev.filter((c) => c.id !== id));
+      toast.success(`Categoria "${nome}" excluída`);
     });
   }
 

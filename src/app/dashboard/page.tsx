@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
+import { unstable_cache } from "next/cache";
 import { AppLayout } from "@/components/app/app-layout";
 import { prisma } from "@/lib/prisma";
 import { formatBRL, formatData, formatDataHora } from "@/lib/format";
@@ -10,7 +11,16 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-async function getDashboardData() {
+// Cache de 20s — equilíbrio entre frescor e custo no Supabase free.
+// Tag "dashboard" pode ser invalidada explicitamente em actions de venda
+// para refletir imediato. Como a chave inclui a data, vira-se sozinho à meia-noite.
+const getDashboardData = unstable_cache(
+  async () => getDashboardDataRaw(),
+  ["dashboard-data-v1"],
+  { revalidate: 20, tags: ["dashboard"] }
+);
+
+async function getDashboardDataRaw() {
   const now = new Date();
   const inicioHoje = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const fimHoje = new Date(inicioHoje.getTime() + 86400000);

@@ -150,7 +150,7 @@ export function NovaNotaForm() {
 
     setLoading(true);
     try {
-      const resultado = await gerarNotaAvulsa({
+      const r = await gerarNotaAvulsa({
         itens: itens.map((i) => ({
           produtoId: i.produtoId,
           unidadeVenda: i.unidade,
@@ -165,11 +165,14 @@ export function NovaNotaForm() {
         descontarEstoque,
       });
 
+      if (!r.ok) {
+        toast.error(r.erro);
+        return;
+      }
+
       toast.success("Nota gerada com sucesso!");
-      const tipoPath = resultado.tipoDocumento === "NOTA" ? "nota" : "recibo";
-      router.push(`/api/pdf/${tipoPath}/${resultado.documentoId}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao gerar nota");
+      const tipoPath = r.data.tipoDocumento === "NOTA" ? "nota" : "recibo";
+      router.push(`/api/pdf/${tipoPath}/${r.data.documentoId}`);
     } finally {
       setLoading(false);
     }

@@ -40,6 +40,10 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json(produtos, {
-    headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=30" },
+    headers: {
+      // Cache curto + revalidação em background. Reduz hits ao DB em rajadas
+      // (digitação rápida no PDV) sem deixar o resultado obsoleto.
+      "Cache-Control": "private, max-age=10, stale-while-revalidate=60",
+    },
   });
 }

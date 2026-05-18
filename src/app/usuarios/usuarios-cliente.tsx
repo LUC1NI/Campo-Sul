@@ -79,29 +79,29 @@ export function UsuariosCliente({ usuarios, currentUserId }: Props) {
   }
 
   async function handleCriar(data: CriarForm) {
-    try {
-      await criarUsuario(data);
-      toast.success("Usuário criado com sucesso");
-      fechar();
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao criar usuário");
+    const r = await criarUsuario(data);
+    if (!r.ok) {
+      toast.error(r.erro);
+      return;
     }
+    toast.success("Usuário criado com sucesso");
+    fechar();
+    router.refresh();
   }
 
   async function handleEditar(data: EditarForm) {
     if (!editando) return;
-    try {
-      await atualizarUsuario(editando.id, {
-        ...data,
-        novaSenha: data.novaSenha || undefined,
-      });
-      toast.success("Usuário atualizado");
-      fechar();
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao atualizar");
+    const r = await atualizarUsuario(editando.id, {
+      ...data,
+      novaSenha: data.novaSenha || undefined,
+    });
+    if (!r.ok) {
+      toast.error(r.erro);
+      return;
     }
+    toast.success("Usuário atualizado");
+    fechar();
+    router.refresh();
   }
 
   const ativos = usuarios.filter((u) => u.ativo);

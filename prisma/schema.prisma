@@ -225,6 +225,18 @@ model MovimentoEstoque {
   @@index([usuarioId])
 }
 
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  ip        String?
+  sucesso   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+  @@index([createdAt])
+}
+
 model EntradaXml {
   id            String   @id @default(cuid())
   chaveAcesso   String   @unique

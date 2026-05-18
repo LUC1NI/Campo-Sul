@@ -90,8 +90,25 @@ pnpm prisma db seed                   # seed inicial
 - [x] Fase 7: Polimento UI do site institucional
 - [ ] Fase 8: Deploy Vercel + hardening
 
-## Estado atual (2026-05-14)
+## Estado atual (2026-05-18)
 Fases 0–8 concluídas. Deploy no Vercel funcionando. 11/11 testes passando.
+
+**Auditoria de segurança/performance v2 (2026-05-18):**
+- [x] `src/lib/auth-helpers.ts` — `requireAuth`, `requireActiveUser`, `requireAdmin`, `runAction`, `mensagemErroSegura`
+- [x] Todas as Server Actions agora retornam `{ok, data} | {ok, erro}` via `runAction`
+- [x] `requireActiveUser` revalida `usuario.ativo` em todas as mutations (mata sessão JWT de usuário desativado)
+- [x] Rate limiting no login: modelo `LoginAttempt` + `src/lib/rate-limit.ts` (5 falhas/email + 20/IP em 15 min)
+- [x] `buscarVendas`: funcionário só vê as próprias vendas; admin vê tudo (S3)
+- [x] `/api/produtos/[id]`: `precoCusto` só para admin; outros campos via `select` minimal (S2)
+- [x] N+1 em `confirmarImportacaoXml` e `confirmarImportacaoTxt`: agregação em createMany — 80 itens passou de ~400 queries → ~6
+- [x] N+1 em `cancelarVenda`: ajustes agregados por produto
+- [x] Dashboard cacheado via `unstable_cache` 20s (tag `dashboard`)
+- [x] `/api/produtos/buscar`: cache `max-age=10, stale-while-revalidate=60`
+- [x] Filtro "estoque baixo" via `$queryRaw` parametrizado (filtra no SQL, não em JS)
+- [x] Cron mensal limpa `LoginAttempt` > 7 dias
+- [x] Sanitização de erros: stacks/SQL nunca chegam ao cliente; Zod/Prisma viram pt-BR amigável
+- [x] Limites de tamanho em todos os schemas Zod (max em strings, max em arrays)
+- [x] **CSP com nonce dinâmico**: `middleware.ts` gera nonce por request, Next.js 15 auto-aplica em todos os `<script>` via `x-nonce`. `unsafe-inline` removido do `script-src` (mantido em `style-src` por compatibilidade React)
 Importação XML NF-e funcionando (SIEG formato 4.00 com bloco IBSCBSTot).
 `/notas/nova` — geração de nota avulsa com opção de descontar ou não o estoque.
 `/notas` — paginação 30 itens/página + filtros por tipo e cliente (já implementado).

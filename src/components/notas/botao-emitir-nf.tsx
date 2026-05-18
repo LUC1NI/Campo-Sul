@@ -20,7 +20,12 @@ export function BotaoEmitirNF({ documentoId, numeroRecibo }: BotaoEmitirNFProps)
     setAberto(false);
     setCarregando(true);
     try {
-      const id = await emitirNotaFiscal(documentoId);
+      const r = await emitirNotaFiscal(documentoId);
+      if (!r.ok) {
+        toast.error(r.erro);
+        return;
+      }
+      const { id } = r.data;
       toast.success("Recibo convertido para Nota Fiscal!");
 
       const res = await fetch(`/api/pdf/nota/${id}`);
@@ -33,8 +38,6 @@ export function BotaoEmitirNF({ documentoId, numeroRecibo }: BotaoEmitirNFProps)
         await marcarErroPdf(id, `HTTP ${res.status}`);
         toast.warning("NF emitida, mas o PDF falhou — acesse Notas para reemitir.");
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao emitir nota fiscal");
     } finally {
       setCarregando(false);
     }
