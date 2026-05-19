@@ -47,9 +47,17 @@ export function LandingClient() {
     // ── Custom cursor (desktop only) ──
     const dot = document.getElementById("cdot");
     const ring = document.getElementById("cring");
-    let mx = 0, my = 0, rx = 0, ry = 0;
+    // Inicia fora da tela — fica invisível até o primeiro mousemove.
+    // Evita o "ponto preso no canto superior esquerdo" antes do usuário mover.
+    let mx = -100, my = -100, rx = -100, ry = -100;
+    let primeiroMove = true;
     const onMouseMove = (e: MouseEvent) => {
       mx = e.clientX; my = e.clientY;
+      if (primeiroMove) {
+        // Teleporta o ring pro ponto atual sem animar a interpolação a partir de (-100,-100)
+        rx = mx; ry = my;
+        primeiroMove = false;
+      }
       if (dot) dot.style.transform = `translate(${mx}px, ${my}px) translate(-50%, -50%)`;
     };
     let rafId: number;
@@ -59,6 +67,9 @@ export function LandingClient() {
       rafId = requestAnimationFrame(loop);
     };
     if (dot && ring) {
+      // Esconde o ponto até o primeiro movimento (CSS já fica em -100,-100 via inline style)
+      dot.style.transform = `translate(${mx}px, ${my}px) translate(-50%, -50%)`;
+      ring.style.transform = `translate(${rx}px, ${ry}px) translate(-50%, -50%)`;
       window.addEventListener("mousemove", onMouseMove);
       rafId = requestAnimationFrame(loop);
       document.querySelectorAll("a, button, .prod-card").forEach((el) => {
