@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +13,7 @@ const POR_PAGINA = 30;
 
 type PageParams = { q?: string; tipo?: string; pagina?: string; tab?: string };
 
-// â”€â”€ Notas Emitidas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ���� Notas Emitidas ��������������������������������������������������������������������������������������������������������������������
 
 async function getNotas({ q, tipo, pagina }: { q: string; tipo: string; pagina: number }) {
   const where = {
@@ -157,7 +157,7 @@ async function NotasTabela({ params }: { params: PageParams }) {
                 >
                   <td className="px-4 py-3">
                     <span className="font-medium">
-                      NÂº {String(nota.numero).padStart(6, "0")} / {nota.serie}
+                      Nº {String(nota.numero).padStart(6, "0")} / {nota.serie}
                     </span>
                     <div className="text-xs text-muted-foreground">Venda #{nota.venda.numero}</div>
                   </td>
@@ -180,7 +180,7 @@ async function NotasTabela({ params }: { params: PageParams }) {
                     {formatDataHora(nota.emitidoEm)}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {nota.nomeCliente || nota.cpfCnpj || "NÃ£o identificado"}
+                    {nota.nomeCliente || nota.cpfCnpj || "Não identificado"}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-verde-mata">
                     {formatBRL(Number(nota.venda.total))}
@@ -211,7 +211,7 @@ async function NotasTabela({ params }: { params: PageParams }) {
   );
 }
 
-// â”€â”€ NF-e Recebidas (importaÃ§Ãµes XML) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ���� NF-e Recebidas (importações XML) ��������������������������������������������������������������������������������
 
 async function getEntradasXml({ q, pagina }: { q: string; pagina: number }) {
   const where = q
@@ -334,7 +334,7 @@ async function EntradasXmlTabela({ params }: { params: PageParams }) {
             ) : (
               entradas.map((e) => (
                 <tr key={e.id} className="transition-colors hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium tabular-nums">NÂº {e.numeroNf}</td>
+                  <td className="px-4 py-3 font-medium tabular-nums">Nº {e.numeroNf}</td>
                   <td className="px-4 py-3">
                     <p className="font-medium leading-tight text-foreground">{e.nomeEmitente}</p>
                     <p className="text-xs text-muted-foreground">
@@ -369,7 +369,7 @@ async function EntradasXmlTabela({ params }: { params: PageParams }) {
   );
 }
 
-// â”€â”€ PaginaÃ§Ã£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ���� Paginação ��������������������������������������������������������������������������������������������������������������������������������
 
 function Paginacao({
   pagina,
@@ -388,13 +388,13 @@ function Paginacao({
           href={buildHref(pagina - 1)}
           className="rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
         >
-          â†
+          � �
         </Link>
       )}
       {pages.map((p, i) =>
         p === "..." ? (
           <span key={`e-${i}`} className="px-2 text-sm text-muted-foreground">
-            â€¦
+            ⬦
           </span>
         ) : (
           <Link
@@ -413,7 +413,7 @@ function Paginacao({
           href={buildHref(pagina + 1)}
           className="rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
         >
-          â†’
+          � 
         </Link>
       )}
     </div>
@@ -430,7 +430,7 @@ function buildPages(current: number, total: number): (number | "...")[] {
   return pages;
 }
 
-// â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ���� Page ������������������������������������������������������������������������������������������������������������������������������������������
 
 export default async function NotasPage({ searchParams }: { searchParams: Promise<PageParams> }) {
   const params = await searchParams;
@@ -535,7 +535,7 @@ export default async function NotasPage({ searchParams }: { searchParams: Promis
             <input
               name="q"
               defaultValue={q}
-              placeholder="Buscar por fornecedor, CNPJ ou nÂº NF-e..."
+              placeholder="Buscar por fornecedor, CNPJ ou nº NF-e..."
               className="min-w-[200px] max-w-sm flex-1 rounded-lg border border-border px-3.5 py-2 text-sm focus:border-verde-mata focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
             />
             <button

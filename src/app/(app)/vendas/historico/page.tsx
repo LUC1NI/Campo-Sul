@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import { buscarVendas } from "@/app/actions/vendas";
@@ -10,8 +10,8 @@ import { PdfLink } from "@/components/notas/pdf-link";
 
 const METODO_LABEL: Record<string, string> = {
   DINHEIRO: "Dinheiro",
-  DEBITO: "DÃ©bito",
-  CREDITO: "CrÃ©dito",
+  DEBITO: "Débito",
+  CREDITO: "Crédito",
   PIX: "PIX",
 };
 
@@ -149,7 +149,7 @@ async function HistoricoTabela({ params }: { params: PageParams }) {
                   <td className="px-4 py-3 text-xs text-muted-foreground">
                     {v.pagamentos
                       .map((p) => `${METODO_LABEL[p.metodo]}: R$${Number(p.valor).toFixed(2)}`)
-                      .join(" Â· ")}
+                      .join(" · ")}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-verde-mata">
                     {formatBRL(Number(v.total))}
@@ -162,7 +162,7 @@ async function HistoricoTabela({ params }: { params: PageParams }) {
                           : "bg-destructive/10 text-destructive"
                       }`}
                     >
-                      {v.status === "CONCLUIDA" ? "ConcluÃ­da" : "Cancelada"}
+                      {v.status === "CONCLUIDA" ? "Concluída" : "Cancelada"}
                     </span>
                   </td>
                 </tr>
@@ -179,13 +179,13 @@ async function HistoricoTabela({ params }: { params: PageParams }) {
               href={buildHref(params, { pagina: String(pagina - 1) })}
               className="rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
             >
-              â†
+              � �
             </Link>
           )}
           {pages.map((p, i) =>
             p === "..." ? (
               <span key={`e-${i}`} className="px-2 text-sm text-muted-foreground">
-                â€¦
+                ⬦
               </span>
             ) : (
               <Link
@@ -204,7 +204,7 @@ async function HistoricoTabela({ params }: { params: PageParams }) {
               href={buildHref(params, { pagina: String(pagina + 1) })}
               className="rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
             >
-              â†’
+              � 
             </Link>
           )}
         </div>
@@ -245,17 +245,17 @@ export default async function HistoricoVendasPage({
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="font-fraunces text-2xl font-bold text-verde-mata">HistÃ³rico de Vendas</h1>
+        <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Histórico de Vendas</h1>
         <Link href="/vendas" className="text-sm text-verde-mata hover:underline">
-          â† PDV
+          � � PDV
         </Link>
       </div>
 
       {/* Filtros */}
       <div className="space-y-3 rounded-xl border border-border bg-white p-4">
-        {/* PerÃ­odo â€” navegaÃ§Ã£o direta (Links) */}
+        {/* Período � navegação direta (Links) */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-medium text-muted-foreground">PerÃ­odo:</span>
+          <span className="mr-1 text-xs font-medium text-muted-foreground">Período:</span>
           {PERIODOS.map((p) => (
             <Link
               key={p.value}
@@ -271,9 +271,9 @@ export default async function HistoricoVendasPage({
           ))}
         </div>
 
-        {/* Outros filtros â€” GET form */}
+        {/* Outros filtros � GET form */}
         <form method="GET" className="flex flex-wrap gap-2">
-          {/* Preserva o perÃ­odo atual */}
+          {/* Preserva o período atual */}
           {periodo !== "todos" && <input type="hidden" name="periodo" value={periodo} />}
 
           <select
@@ -294,10 +294,10 @@ export default async function HistoricoVendasPage({
             defaultValue={params.metodo ?? ""}
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-verde-mata focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
           >
-            <option value="">Todos os mÃ©todos</option>
+            <option value="">Todos os métodos</option>
             <option value="DINHEIRO">Dinheiro</option>
-            <option value="DEBITO">DÃ©bito</option>
-            <option value="CREDITO">CrÃ©dito</option>
+            <option value="DEBITO">Débito</option>
+            <option value="CREDITO">Crédito</option>
             <option value="PIX">PIX</option>
           </select>
 
@@ -307,7 +307,7 @@ export default async function HistoricoVendasPage({
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-verde-mata focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
           >
             <option value="">Todos os status</option>
-            <option value="CONCLUIDA">ConcluÃ­das</option>
+            <option value="CONCLUIDA">Concluídas</option>
             <option value="CANCELADA">Canceladas</option>
           </select>
 

@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 import { listarUsuarios } from "@/app/actions/usuarios";
 import { UsuariosCliente } from "./usuarios-cliente";
 import { auth } from "@/lib/auth";

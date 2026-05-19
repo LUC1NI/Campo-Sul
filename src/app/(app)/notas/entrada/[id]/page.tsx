@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -59,7 +59,7 @@ export default async function EntradaXmlDetailPage({
         </Link>
         <div>
           <h1 className="font-fraunces text-2xl font-bold text-verde-mata">
-            NF-e NÂº {entrada.numeroNf}
+            NF-e Nº {entrada.numeroNf}
           </h1>
           <p className="text-sm text-muted-foreground">
             Importada em {formatDataHora(entrada.importadoEm)}
@@ -67,7 +67,7 @@ export default async function EntradaXmlDetailPage({
         </div>
       </div>
 
-      {/* CabeÃ§alho da nota */}
+      {/* Cabeçalho da nota */}
       <div className="rounded-xl border border-border bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-3">
@@ -140,7 +140,7 @@ export default async function EntradaXmlDetailPage({
                       href={`/estoque/${item.produto.id}`}
                       className="text-xs text-verde-claro transition-colors hover:text-verde-mata"
                     >
-                      â†’ {item.produto.nome} ({item.produto.codigo})
+                      �  {item.produto.nome} ({item.produto.codigo})
                     </Link>
                   )}
                   {item.gtin && <p className="text-xs text-muted-foreground">EAN: {item.gtin}</p>}
@@ -166,7 +166,7 @@ export default async function EntradaXmlDetailPage({
                       Atualizado
                     </span>
                   ) : (
-                    <span className="text-xs text-muted-foreground">â€”</span>
+                    <span className="text-xs text-muted-foreground">�</span>
                   )}
                 </td>
               </tr>

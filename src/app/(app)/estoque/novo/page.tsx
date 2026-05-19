@@ -1,4 +1,4 @@
-﻿import { listarCategorias } from "@/app/actions/produtos";
+import { listarCategorias } from "@/app/actions/produtos";
 import { NovoProdutoForm } from "./_novo-produto-form";
 
 export default async function NovoProdutoPage() {

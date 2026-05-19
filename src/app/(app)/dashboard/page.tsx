@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import { unstable_cache } from "next/cache";
@@ -15,9 +15,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-// Cache de 20s â€” equilÃ­brio entre frescor e custo no Supabase free.
+// Cache de 20s � equilíbrio entre frescor e custo no Supabase free.
 // Tag "dashboard" pode ser invalidada explicitamente em actions de venda
-// para refletir imediato. Como a chave inclui a data, vira-se sozinho Ã  meia-noite.
+// para refletir imediato. Como a chave inclui a data, vira-se sozinho à meia-noite.
 const getDashboardData = unstable_cache(async () => getDashboardDataRaw(), ["dashboard-data-v1"], {
   revalidate: 20,
   tags: ["dashboard"],
@@ -106,7 +106,7 @@ async function getDashboardDataRaw() {
     total_val: String(p._sum.total ?? 0),
   }));
 
-  // Filtra em JS os que estÃ£o abaixo do mÃ­nimo (coluna-a-coluna nÃ£o suportado pelo ORM)
+  // Filtra em JS os que estão abaixo do mínimo (coluna-a-coluna não suportado pelo ORM)
   const estoqueCriticoFilt = estoqueCritico
     .filter((p) => Number(p.quantidade) <= Number(p.quantidadeMinima))
     .sort((a, b) => {
@@ -147,8 +147,8 @@ async function getDashboardDataRaw() {
 
 const METODO_LABEL: Record<string, string> = {
   DINHEIRO: "Dinheiro",
-  DEBITO: "DÃ©bito",
-  CREDITO: "CrÃ©dito",
+  DEBITO: "Débito",
+  CREDITO: "Crédito",
   PIX: "PIX",
 };
 const UNIDADE_LABEL: Record<string, string> = {
@@ -246,7 +246,7 @@ async function DashboardContent() {
 
   return (
     <div className="space-y-3">
-      {/* CabeÃ§alho */}
+      {/* Cabeçalho */}
       <div>
         <h1 className="font-fraunces text-lg font-bold text-verde-mata">Dashboard</h1>
         <p className="text-xs text-muted-foreground">
@@ -286,18 +286,18 @@ async function DashboardContent() {
           <Variacao atual={totalHoje} anterior={totalOntem} />
         </div>
 
-        {/* Ticket mÃ©dio */}
+        {/* Ticket médio */}
         <div className="rounded-xl border border-border bg-white p-3">
           <div className="mb-1.5 flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Ticket mÃ©dio
+              Ticket médio
             </span>
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
               <DollarSign className="h-3.5 w-3.5" />
             </div>
           </div>
           <div className="font-fraunces text-xl font-bold text-foreground">
-            {vendasHoje > 0 ? formatBRL(ticketMedio) : "â€”"}
+            {vendasHoje > 0 ? formatBRL(ticketMedio) : "�"}
           </div>
           <span className="mt-0.5 block text-xs text-muted-foreground">
             {produtosAtivos} produto{produtosAtivos !== 1 ? "s" : ""} ativos
@@ -332,7 +332,7 @@ async function DashboardContent() {
               href="/estoque?negativo=1"
               className="mt-0.5 block text-xs text-red-600 hover:underline"
             >
-              Recontar â†’
+              Recontar � 
             </Link>
           ) : (
             <span className="mt-0.5 block text-xs text-muted-foreground">tudo ok</span>
@@ -340,14 +340,14 @@ async function DashboardContent() {
         </div>
       </div>
 
-      {/* Linha 2: Ãšltimas vendas + Por mÃ©todo */}
+      {/* Linha 2: �altimas vendas + Por método */}
       <div className="grid grid-cols-1 gap-3 desk:grid-cols-5">
-        {/* Ãšltimas vendas */}
+        {/* �altimas vendas */}
         <div className="rounded-xl border border-border bg-white desk:col-span-3">
           <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-            <h2 className="text-sm font-semibold">Ãšltimas vendas</h2>
+            <h2 className="text-sm font-semibold">�altimas vendas</h2>
             <Link href="/vendas/historico" className="text-xs text-verde-mata hover:underline">
-              Ver todas â†’
+              Ver todas � 
             </Link>
           </div>
           <div className="divide-y divide-border">
@@ -380,7 +380,7 @@ async function DashboardContent() {
           </div>
         </div>
 
-        {/* Por mÃ©todo de pagamento */}
+        {/* Por método de pagamento */}
         <div className="rounded-xl border border-border bg-white p-4 desk:col-span-2">
           <h2 className="mb-3 text-sm font-semibold">Pagamentos hoje</h2>
           {porMetodo.length === 0 ? (
@@ -424,7 +424,7 @@ async function DashboardContent() {
         </div>
       </div>
 
-      {/* Linha 3: Top produtos + Estoque crÃ­tico */}
+      {/* Linha 3: Top produtos + Estoque crítico */}
       {(topProdutos.length > 0 || estoqueCritico.length > 0) && (
         <div className="grid grid-cols-1 gap-3 desk:grid-cols-5">
           {/* Top produtos */}
@@ -454,13 +454,13 @@ async function DashboardContent() {
             </div>
           )}
 
-          {/* Estoque crÃ­tico */}
+          {/* Estoque crítico */}
           {estoqueCritico.length > 0 && (
             <div
               className={`rounded-xl border border-yellow-200 bg-white ${topProdutos.length > 0 ? "desk:col-span-2" : "desk:col-span-5"}`}
             >
               <div className="flex items-center justify-between border-b border-yellow-100 px-4 py-2.5">
-                <h2 className="text-sm font-semibold text-yellow-700">Estoque crÃ­tico</h2>
+                <h2 className="text-sm font-semibold text-yellow-700">Estoque crítico</h2>
                 <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
                   {estoqueCritico.length}
                 </span>
@@ -507,7 +507,7 @@ async function DashboardContent() {
           <div className="flex items-center justify-between border-b border-red-100 px-4 py-2.5">
             <div className="flex items-center gap-2">
               <AlertOctagon className="h-4 w-4 text-red-600" />
-              <h2 className="text-sm font-semibold text-red-700">Estoque negativo â€” recontar</h2>
+              <h2 className="text-sm font-semibold text-red-700">Estoque negativo � recontar</h2>
             </div>
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
               {estoqueNegativo.length} produto{estoqueNegativo.length !== 1 ? "s" : ""}
@@ -531,13 +531,13 @@ async function DashboardContent() {
         </div>
       )}
 
-      {/* Atalhos rÃ¡pidos */}
+      {/* Atalhos rápidos */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { href: "/vendas", label: "Nova venda", desc: "Abrir PDV" },
           { href: "/estoque/novo", label: "Novo produto", desc: "Cadastrar no estoque" },
           { href: "/notas", label: "Notas e recibos", desc: "Ver documentos" },
-          { href: "/relatorios", label: "RelatÃ³rios", desc: "Indicadores do dia" },
+          { href: "/relatorios", label: "Relatórios", desc: "Indicadores do dia" },
         ].map((item) => (
           <Link
             key={item.href}

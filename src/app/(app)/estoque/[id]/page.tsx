@@ -1,4 +1,4 @@
-﻿import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { listarCategorias } from "@/app/actions/produtos";
 import { EditarProdutoForm } from "./_editar-produto-form";
 import { AjusteEstoque } from "./_ajuste-estoque";
@@ -14,7 +14,7 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
 
   if (!produto) notFound();
 
-  // Serializa os campos Decimal para string â€” Client Components nÃ£o aceitam Decimal do Prisma
+  // Serializa os campos Decimal para string � Client Components não aceitam Decimal do Prisma
   const produtoSerializado = {
     id: produto.id,
     codigo: produto.codigo,

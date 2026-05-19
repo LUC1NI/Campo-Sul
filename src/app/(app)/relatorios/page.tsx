@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
@@ -23,13 +23,13 @@ type Periodo = "hoje" | "semana" | "mes";
 const PERIODOS: { key: Periodo; label: string }[] = [
   { key: "hoje", label: "Hoje" },
   { key: "semana", label: "Esta semana" },
-  { key: "mes", label: "Este mÃªs" },
+  { key: "mes", label: "Este mês" },
 ];
 
 const METODO_LABEL: Record<string, string> = {
   DINHEIRO: "Dinheiro",
-  DEBITO: "DÃ©bito",
-  CREDITO: "CrÃ©dito",
+  DEBITO: "Débito",
+  CREDITO: "Crédito",
   PIX: "PIX",
 };
 
@@ -76,7 +76,7 @@ function getIntervalo(periodo: Periodo) {
       fim: fimHoje,
       inicioAnt: inicioMesAnt,
       fimAnt: inicioMes,
-      labelAnt: "mÃªs passado",
+      labelAnt: "mês passado",
     };
   }
 
@@ -259,7 +259,7 @@ async function Content({ periodo }: { periodo: Periodo }) {
       {/* Header */}
       <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
         <div>
-          <h1 className="font-fraunces text-lg font-bold text-verde-mata">RelatÃ³rios</h1>
+          <h1 className="font-fraunces text-lg font-bold text-verde-mata">Relatórios</h1>
           <p className="text-xs text-muted-foreground">
             {formatData(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy")}
           </p>
@@ -312,14 +312,14 @@ async function Content({ periodo }: { periodo: Periodo }) {
         <div className="rounded-xl border border-border bg-white p-3">
           <div className="mb-1.5 flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Ticket mÃ©dio
+              Ticket médio
             </span>
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
               <DollarSign className="h-3.5 w-3.5" />
             </div>
           </div>
           <div className="font-fraunces text-xl font-bold text-foreground">
-            {vendas > 0 ? formatBRL(ticket) : "â€”"}
+            {vendas > 0 ? formatBRL(ticket) : "�"}
           </div>
           {ticketAnt > 0 ? (
             <Variacao atual={ticket} anterior={ticketAnt} labelAnt={labelAnt} />
@@ -351,7 +351,7 @@ async function Content({ periodo }: { periodo: Periodo }) {
             {produtosBaixos.length}
           </div>
           {produtosBaixos.length > 0 ? (
-            <span className="mt-0.5 block text-xs text-yellow-600">abaixo do mÃ­nimo</span>
+            <span className="mt-0.5 block text-xs text-yellow-600">abaixo do mínimo</span>
           ) : (
             <span className="mt-0.5 block text-xs text-muted-foreground">tudo ok</span>
           )}
@@ -367,12 +367,12 @@ async function Content({ periodo }: { periodo: Periodo }) {
               <h2 className="text-sm font-semibold">Mais vendidos</h2>
             </div>
             <Link href="/estoque" className="text-xs text-verde-mata hover:underline">
-              Ver estoque â†’
+              Ver estoque � 
             </Link>
           </div>
           {topProdutos.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-              Nenhuma venda no perÃ­odo.
+              Nenhuma venda no período.
             </p>
           ) : (
             <div className="divide-y divide-border">
@@ -415,7 +415,7 @@ async function Content({ periodo }: { periodo: Periodo }) {
           </div>
           {porMetodo.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              Nenhum pagamento no perÃ­odo.
+              Nenhum pagamento no período.
             </p>
           ) : (
             <div className="space-y-2.5">
@@ -460,7 +460,7 @@ async function Content({ periodo }: { periodo: Periodo }) {
           <div className="flex items-center justify-between border-b border-yellow-100 px-4 py-2.5">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <h2 className="text-sm font-semibold text-yellow-700">Estoque abaixo do mÃ­nimo</h2>
+              <h2 className="text-sm font-semibold text-yellow-700">Estoque abaixo do mínimo</h2>
             </div>
             <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-700">
               {produtosBaixos.length}
@@ -490,7 +490,7 @@ async function Content({ periodo }: { periodo: Periodo }) {
                       </span>
                       <span className="text-muted-foreground">
                         {" "}
-                        / mÃ­n {Number(p.quantidadeMinima).toFixed(2)} {uni}
+                        / mín {Number(p.quantidadeMinima).toFixed(2)} {uni}
                       </span>
                     </span>
                   </div>
@@ -513,7 +513,7 @@ async function Content({ periodo }: { periodo: Periodo }) {
           {
             href: "/vendas/historico",
             Icon: History,
-            label: "HistÃ³rico de vendas",
+            label: "Histórico de vendas",
             desc: "Ver todas as vendas realizadas",
           },
           { href: "/notas", Icon: FileText, label: "Notas e recibos", desc: "Documentos emitidos" },

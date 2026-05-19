@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
@@ -91,8 +91,8 @@ async function getProdutos(params: {
   };
 
   if (baixo) {
-    // Filtro coluna-a-coluna nÃ£o suportado pelo ORM â€” usa SQL parametrizado.
-    // Seguro: todos os parÃ¢metros sÃ£o passados via $queryRaw template literal.
+    // Filtro coluna-a-coluna não suportado pelo ORM � usa SQL parametrizado.
+    // Seguro: todos os parâmetros são passados via $queryRaw template literal.
     const ids = await prisma.$queryRaw<{ id: string }[]>(
       Prisma.sql`
         SELECT id FROM "Produto"
@@ -178,7 +178,7 @@ function TabelaSkeleton() {
       <table className="w-full min-w-[640px] text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/50">
-            {["Produto", "Categoria", "Unidade", "Qtd. estoque", "PreÃ§o venda", "AÃ§Ãµes"].map(
+            {["Produto", "Categoria", "Unidade", "Qtd. estoque", "Preço venda", "Ações"].map(
               (h) => (
                 <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">
                   {h}
@@ -256,9 +256,9 @@ async function TabelaAtivos({ params }: { params: PageParams }) {
                 Qtd. estoque
               </th>
               <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                PreÃ§o venda
+                Preço venda
               </th>
-              <th className="px-4 py-3 text-center font-medium text-muted-foreground">AÃ§Ãµes</th>
+              <th className="px-4 py-3 text-center font-medium text-muted-foreground">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -286,13 +286,13 @@ async function TabelaAtivos({ params }: { params: PageParams }) {
                         <span className="font-medium text-foreground">{p.nome}</span>
                         {p.podeFracionar && (
                           <span className="rounded bg-bege px-1.5 py-0.5 text-xs text-terra">
-                            fracionÃ¡vel
+                            fracionável
                           </span>
                         )}
                         {negativo && (
                           <AlertOctagon
                             className="h-3.5 w-3.5 text-red-500"
-                            aria-label="Estoque negativo â€” recontar"
+                            aria-label="Estoque negativo � recontar"
                           />
                         )}
                         {baixo && (
@@ -305,7 +305,7 @@ async function TabelaAtivos({ params }: { params: PageParams }) {
                       <div className="text-xs text-muted-foreground">{p.codigo}</div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {p.categoria?.nome ?? "â€”"}
+                      {p.categoria?.nome ?? "�"}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {UNIDADE_LABEL[p.unidade]}
@@ -388,7 +388,7 @@ async function TabelaInativos({ params }: { params: PageParams }) {
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">
                 Desativado em
               </th>
-              <th className="px-4 py-3 text-center font-medium text-muted-foreground">AÃ§Ãµes</th>
+              <th className="px-4 py-3 text-center font-medium text-muted-foreground">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -406,11 +406,11 @@ async function TabelaInativos({ params }: { params: PageParams }) {
                     <span className="font-medium text-foreground">{p.nome}</span>
                     <div className="text-xs text-muted-foreground">{p.codigo}</div>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{p.categoria?.nome ?? "â€”"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{p.categoria?.nome ?? "�"}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">
                     {p.deletedAt
-                      ? format(new Date(p.deletedAt), "dd/MM/yyyy 'Ã s' HH:mm", { locale: ptBR })
-                      : "â€”"}
+                      ? format(new Date(p.deletedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                      : "�"}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <BotaoReativar id={p.id} nome={p.nome} />
@@ -443,13 +443,13 @@ function Paginacao({
           href={buildHref(pagina - 1)}
           className="rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
         >
-          â†
+          � �
         </Link>
       )}
       {pages.map((p, i) =>
         p === "..." ? (
           <span key={`e-${i}`} className="px-2 text-sm text-muted-foreground">
-            â€¦
+            ⬦
           </span>
         ) : (
           <Link
@@ -468,7 +468,7 @@ function Paginacao({
           href={buildHref(pagina + 1)}
           className="rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
         >
-          â†’
+          � 
         </Link>
       )}
     </div>

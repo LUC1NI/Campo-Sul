@@ -1,4 +1,4 @@
-﻿import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { CategoriasClient } from "./_categorias-client";
 
 async function getCategorias() {

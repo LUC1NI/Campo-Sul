@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useRef, DragEvent } from "react";
 import { parsearEstoqueTxt, confirmarImportacaoTxt, TxtPreview } from "@/app/actions/estoque";
@@ -40,7 +40,7 @@ export default function ImportarTxtPage() {
       }
       setPreview(result.data);
 
-      // Por padrÃ£o: seleciona apenas os novos produtos
+      // Por padrão: seleciona apenas os novos produtos
       const sel: Record<number, boolean> = {};
       const pv: Record<number, string> = {};
       result.data.itens.forEach((item, i) => {
@@ -86,7 +86,7 @@ export default function ImportarTxtPage() {
       if (!selecionados[i] || preview.itens[i].produtoExistente) continue;
       const pv = Number(precosVenda[i]);
       if (!precosVenda[i] || isNaN(pv) || pv <= 0) {
-        toast.error(`Informe o preÃ§o de venda para o produto: ${preview.itens[i].gtin}`);
+        toast.error(`Informe o preço de venda para o produto: ${preview.itens[i].gtin}`);
         return;
       }
     }
@@ -150,9 +150,9 @@ export default function ImportarTxtPage() {
           <div>
             <p className="mb-0.5 font-medium">Sobre este importador</p>
             <p>
-              O arquivo Ã© analisado e agrupado por cÃ³digo GTIN/EAN. Produtos duplicados sÃ£o
-              mesclados somando as quantidades. Produtos importados terÃ£o o cÃ³digo GTIN como nome
-              temporÃ¡rio â€” edite-os depois em{" "}
+              O arquivo é analisado e agrupado por código GTIN/EAN. Produtos duplicados são
+              mesclados somando as quantidades. Produtos importados terão o código GTIN como nome
+              temporário � edite-os depois em{" "}
               <Link href="/estoque" className="underline">
                 Estoque
               </Link>
@@ -222,8 +222,8 @@ export default function ImportarTxtPage() {
                 </p>
                 <p className="text-sm text-foreground">
                   <span className="font-bold text-verde-mata">{preview.totalLinhas}</span> linhas
-                  â†’ <span className="font-bold text-verde-mata">{preview.totalUnicos}</span>{" "}
-                  produtos Ãºnicos
+                  �  <span className="font-bold text-verde-mata">{preview.totalUnicos}</span>{" "}
+                  produtos únicos
                 </p>
               </div>
               <div className="flex flex-wrap gap-2.5">
@@ -234,7 +234,7 @@ export default function ImportarTxtPage() {
                 )}
                 {preview.itens.filter((i) => i.produtoExistente).length > 0 && (
                   <span className="rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs text-green-700">
-                    {preview.itens.filter((i) => i.produtoExistente).length} jÃ¡ cadastrados
+                    {preview.itens.filter((i) => i.produtoExistente).length} já cadastrados
                   </span>
                 )}
               </div>
@@ -245,15 +245,15 @@ export default function ImportarTxtPage() {
           <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              Produtos novos serÃ£o criados com o GTIN como nome temporÃ¡rio. Acesse{" "}
+              Produtos novos serão criados com o GTIN como nome temporário. Acesse{" "}
               <Link href="/estoque" className="font-medium underline">
                 Estoque
               </Link>{" "}
-              apÃ³s a importaÃ§Ã£o para renomear cada produto.
+              após a importação para renomear cada produto.
             </p>
           </div>
 
-          {/* SeleÃ§Ã£o em massa */}
+          {/* Seleção em massa */}
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground">{totalSelecionados} selecionados</span>
             <button
@@ -289,10 +289,10 @@ export default function ImportarTxtPage() {
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Qtd.</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Custo</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                    PreÃ§o Venda
+                    Preço Venda
                   </th>
                   <th className="px-4 py-3 text-center font-medium text-muted-foreground">
-                    SituaÃ§Ã£o
+                    Situação
                   </th>
                 </tr>
               </thead>
@@ -315,7 +315,7 @@ export default function ImportarTxtPage() {
                     <td className="px-4 py-3">
                       <p className="font-mono font-medium">{item.gtin}</p>
                       {item.produtoExistente && (
-                        <p className="mt-0.5 text-xs text-green-600">â†’ {item.produtoNome}</p>
+                        <p className="mt-0.5 text-xs text-green-600">�  {item.produtoNome}</p>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">
@@ -363,7 +363,7 @@ export default function ImportarTxtPage() {
               onClick={resetar}
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
-              â† Selecionar outro arquivo
+              � � Selecionar outro arquivo
             </button>
             <button
               onClick={handleConfirmar}
@@ -384,7 +384,7 @@ export default function ImportarTxtPage() {
             <CheckCircle className="h-7 w-7 text-green-600" />
           </div>
           <h2 className="mb-2 font-fraunces text-xl font-bold text-foreground">
-            ImportaÃ§Ã£o concluÃ­da!
+            Importação concluída!
           </h2>
           <p className="mb-7 text-sm text-muted-foreground">
             {resultado.criados > 0 && (
@@ -392,7 +392,7 @@ export default function ImportarTxtPage() {
                 {resultado.criados} produto(s) criado(s)
               </span>
             )}
-            {resultado.criados > 0 && resultado.atualizados > 0 && " Â· "}
+            {resultado.criados > 0 && resultado.atualizados > 0 && " · "}
             {resultado.atualizados > 0 && (
               <span className="font-medium text-green-700">
                 {resultado.atualizados} produto(s) com estoque atualizado
