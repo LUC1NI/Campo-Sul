@@ -9,10 +9,7 @@ import { ShoppingCart } from "lucide-react";
 import { PdfLink } from "@/components/notas/pdf-link";
 
 const METODO_LABEL: Record<string, string> = {
-  DINHEIRO: "Dinheiro",
-  DEBITO: "Débito",
-  CREDITO: "Crédito",
-  PIX: "PIX",
+  DINHEIRO: "Dinheiro", DEBITO: "Débito", CREDITO: "Crédito", PIX: "PIX",
 };
 
 type PageParams = {
@@ -49,38 +46,24 @@ function buildHref(params: PageParams, updates: Partial<PageParams>) {
 
 function TabelaSkeleton() {
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-white">
-      <table className="w-full min-w-[560px] text-sm">
+    <div className="bg-white rounded-xl border border-border overflow-x-auto">
+      <table className="w-full text-sm min-w-[560px]">
         <thead>
           <tr className="border-b border-border bg-muted/50">
             {["Venda", "Data", "Vendedor", "Pagamentos", "Total", "Status"].map((h) => (
-              <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">
-                {h}
-              </th>
+              <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
             ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
           {Array.from({ length: 8 }).map((_, i) => (
             <tr key={i}>
-              <td className="px-4 py-3">
-                <div className="h-4 w-16 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="h-4 w-36 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="ml-auto h-4 w-20 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="mx-auto h-5 w-20 animate-pulse rounded-full bg-muted" />
-              </td>
+              <td className="px-4 py-3"><div className="h-4 w-16 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-32 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-24 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-36 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-20 bg-muted rounded animate-pulse ml-auto" /></td>
+              <td className="px-4 py-3"><div className="h-5 w-20 bg-muted rounded-full animate-pulse mx-auto" /></td>
             </tr>
           ))}
         </tbody>
@@ -103,33 +86,31 @@ async function HistoricoTabela({ params }: { params: PageParams }) {
 
   return (
     <>
-      <p className="-mt-3 text-sm text-muted-foreground">
-        {total} venda{total !== 1 ? "s" : ""}
-      </p>
+      <p className="text-sm text-muted-foreground -mt-3">{total} venda{total !== 1 ? "s" : ""}</p>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-white">
-        <table className="w-full min-w-[560px] text-sm">
+      <div className="bg-white rounded-xl border border-border overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Venda</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Data</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Vendedor</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Pagamentos</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Total</th>
-              <th className="px-4 py-3 text-center font-medium text-muted-foreground">Status</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Venda</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Data</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Vendedor</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Pagamentos</th>
+              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Total</th>
+              <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {vendas.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                  <ShoppingCart className="mx-auto mb-2 h-8 w-8 opacity-30" />
+                  <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   Nenhuma venda encontrada
                 </td>
               </tr>
             ) : (
               vendas.map((v) => (
-                <tr key={v.id} className="transition-colors hover:bg-muted/30">
+                <tr key={v.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium">
                     #{v.numero}
                     {v.documento && (
@@ -146,22 +127,18 @@ async function HistoricoTabela({ params }: { params: PageParams }) {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{formatDataHora(v.createdAt)}</td>
                   <td className="px-4 py-3 text-muted-foreground">{v.usuario.nome}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">
-                    {v.pagamentos
-                      .map((p) => `${METODO_LABEL[p.metodo]}: R$${Number(p.valor).toFixed(2)}`)
-                      .join(" · ")}
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
+                    {v.pagamentos.map((p) => `${METODO_LABEL[p.metodo]}: R$${Number(p.valor).toFixed(2)}`).join(" · ")}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-verde-mata">
                     {formatBRL(Number(v.total))}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${
-                        v.status === "CONCLUIDA"
-                          ? "bg-verde-mata/10 text-verde-mata"
-                          : "bg-destructive/10 text-destructive"
-                      }`}
-                    >
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      v.status === "CONCLUIDA"
+                        ? "bg-verde-mata/10 text-verde-mata"
+                        : "bg-destructive/10 text-destructive"
+                    }`}>
                       {v.status === "CONCLUIDA" ? "Concluída" : "Cancelada"}
                     </span>
                   </td>
@@ -175,23 +152,16 @@ async function HistoricoTabela({ params }: { params: PageParams }) {
       {paginas > 1 && (
         <div className="flex items-center justify-center gap-1.5">
           {pagina > 1 && (
-            <Link
-              href={buildHref(params, { pagina: String(pagina - 1) })}
-              className="rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
-            >
-              � �
-            </Link>
+            <Link href={buildHref(params, { pagina: String(pagina - 1) })} className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted transition-colors">←</Link>
           )}
           {pages.map((p, i) =>
             p === "..." ? (
-              <span key={`e-${i}`} className="px-2 text-sm text-muted-foreground">
-                ⬦
-              </span>
+              <span key={`e-${i}`} className="px-2 text-muted-foreground text-sm">…</span>
             ) : (
               <Link
                 key={p}
                 href={buildHref(params, { pagina: String(p) })}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors ${
+                className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors ${
                   p === pagina ? "bg-verde-mata text-white" : "border border-border hover:bg-muted"
                 }`}
               >
@@ -200,12 +170,7 @@ async function HistoricoTabela({ params }: { params: PageParams }) {
             )
           )}
           {pagina < paginas && (
-            <Link
-              href={buildHref(params, { pagina: String(pagina + 1) })}
-              className="rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
-            >
-              � 
-            </Link>
+            <Link href={buildHref(params, { pagina: String(pagina + 1) })} className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted transition-colors">→</Link>
           )}
         </div>
       )}
@@ -227,13 +192,7 @@ export default async function HistoricoVendasPage({
   });
 
   const periodo = params.periodo ?? "todos";
-  const temFiltro = !!(
-    params.periodo ||
-    params.vendedor ||
-    params.metodo ||
-    params.status ||
-    params.q
-  );
+  const temFiltro = !!(params.periodo || params.vendedor || params.metodo || params.status || params.q);
 
   const PERIODOS = [
     { value: "todos", label: "Todos" },
@@ -243,104 +202,100 @@ export default async function HistoricoVendasPage({
   ];
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Histórico de Vendas</h1>
-        <Link href="/vendas" className="text-sm text-verde-mata hover:underline">
-          � � PDV
-        </Link>
-      </div>
-
-      {/* Filtros */}
-      <div className="space-y-3 rounded-xl border border-border bg-white p-4">
-        {/* Período � navegação direta (Links) */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-medium text-muted-foreground">Período:</span>
-          {PERIODOS.map((p) => (
-            <Link
-              key={p.value}
-              href={buildHref(params, { periodo: p.value, pagina: "1" })}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                periodo === p.value
-                  ? "bg-verde-mata text-white"
-                  : "border border-border text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {p.label}
-            </Link>
-          ))}
+      <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Histórico de Vendas</h1>
+          <Link href="/vendas" className="text-sm text-verde-mata hover:underline">← PDV</Link>
         </div>
 
-        {/* Outros filtros � GET form */}
-        <form method="GET" className="flex flex-wrap gap-2">
-          {/* Preserva o período atual */}
-          {periodo !== "todos" && <input type="hidden" name="periodo" value={periodo} />}
-
-          <select
-            name="vendedor"
-            defaultValue={params.vendedor ?? ""}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-verde-mata focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
-          >
-            <option value="">Todos os vendedores</option>
-            {usuarios.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.nome}
-              </option>
+        {/* Filtros */}
+        <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+          {/* Período — navegação direta (Links) */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-medium text-muted-foreground mr-1">Período:</span>
+            {PERIODOS.map((p) => (
+              <Link
+                key={p.value}
+                href={buildHref(params, { periodo: p.value, pagina: "1" })}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  periodo === p.value
+                    ? "bg-verde-mata text-white"
+                    : "border border-border text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {p.label}
+              </Link>
             ))}
-          </select>
+          </div>
 
-          <select
-            name="metodo"
-            defaultValue={params.metodo ?? ""}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-verde-mata focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
-          >
-            <option value="">Todos os métodos</option>
-            <option value="DINHEIRO">Dinheiro</option>
-            <option value="DEBITO">Débito</option>
-            <option value="CREDITO">Crédito</option>
-            <option value="PIX">PIX</option>
-          </select>
+          {/* Outros filtros — GET form */}
+          <form method="GET" className="flex flex-wrap gap-2">
+            {/* Preserva o período atual */}
+            {periodo !== "todos" && <input type="hidden" name="periodo" value={periodo} />}
 
-          <select
-            name="status"
-            defaultValue={params.status ?? ""}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-verde-mata focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
-          >
-            <option value="">Todos os status</option>
-            <option value="CONCLUIDA">Concluídas</option>
-            <option value="CANCELADA">Canceladas</option>
-          </select>
-
-          <input
-            name="q"
-            type="text"
-            inputMode="numeric"
-            defaultValue={params.q ?? ""}
-            placeholder="Buscar #"
-            className="w-28 rounded-lg border border-border px-3 py-2 text-sm focus:border-verde-mata focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
-          />
-
-          <button
-            type="submit"
-            className="rounded-lg bg-verde-mata px-4 py-2 text-sm text-white transition-colors hover:bg-verde-claro"
-          >
-            Filtrar
-          </button>
-
-          {temFiltro && (
-            <Link
-              href="/vendas/historico"
-              className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
+            <select
+              name="vendedor"
+              defaultValue={params.vendedor ?? ""}
+              className="px-3 py-2 rounded-lg border border-border text-sm bg-background focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
             >
-              Limpar
-            </Link>
-          )}
-        </form>
-      </div>
+              <option value="">Todos os vendedores</option>
+              {usuarios.map((u) => (
+                <option key={u.id} value={u.id}>{u.nome}</option>
+              ))}
+            </select>
 
-      <Suspense key={JSON.stringify(params)} fallback={<TabelaSkeleton />}>
-        <HistoricoTabela params={params} />
-      </Suspense>
-    </div>
+            <select
+              name="metodo"
+              defaultValue={params.metodo ?? ""}
+              className="px-3 py-2 rounded-lg border border-border text-sm bg-background focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
+            >
+              <option value="">Todos os métodos</option>
+              <option value="DINHEIRO">Dinheiro</option>
+              <option value="DEBITO">Débito</option>
+              <option value="CREDITO">Crédito</option>
+              <option value="PIX">PIX</option>
+            </select>
+
+            <select
+              name="status"
+              defaultValue={params.status ?? ""}
+              className="px-3 py-2 rounded-lg border border-border text-sm bg-background focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
+            >
+              <option value="">Todos os status</option>
+              <option value="CONCLUIDA">Concluídas</option>
+              <option value="CANCELADA">Canceladas</option>
+            </select>
+
+            <input
+              name="q"
+              type="text"
+              inputMode="numeric"
+              defaultValue={params.q ?? ""}
+              placeholder="Buscar #"
+              className="w-28 px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
+            />
+
+            <button
+              type="submit"
+              className="px-4 py-2 bg-verde-mata text-white rounded-lg text-sm hover:bg-verde-claro transition-colors"
+            >
+              Filtrar
+            </button>
+
+            {temFiltro && (
+              <Link
+                href="/vendas/historico"
+                className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Limpar
+              </Link>
+            )}
+          </form>
+        </div>
+
+        <Suspense key={JSON.stringify(params)} fallback={<TabelaSkeleton />}>
+          <HistoricoTabela params={params} />
+        </Suspense>
+      </div>
   );
 }

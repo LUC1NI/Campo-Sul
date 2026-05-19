@@ -13,7 +13,7 @@ const POR_PAGINA = 30;
 
 type PageParams = { q?: string; tipo?: string; pagina?: string; tab?: string };
 
-// ���� Notas Emitidas ��������������������������������������������������������������������������������������������������������������������
+// ── Notas Emitidas ──────────────────────────────────────────────────────────
 
 async function getNotas({ q, tipo, pagina }: { q: string; tipo: string; pagina: number }) {
   const where = {
@@ -57,14 +57,12 @@ async function getNotas({ q, tipo, pagina }: { q: string; tipo: string; pagina: 
 
 function TabelaSkeleton() {
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-white">
-      <table className="w-full min-w-[600px] text-sm">
+    <div className="bg-white rounded-xl border border-border overflow-x-auto">
+      <table className="w-full text-sm min-w-[600px]">
         <thead>
           <tr className="border-b border-border bg-muted/50">
             {["Documento", "Tipo", "Data", "Cliente", "Total", "PDF"].map((h) => (
-              <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">
-                {h}
-              </th>
+              <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
             ))}
           </tr>
         </thead>
@@ -72,24 +70,14 @@ function TabelaSkeleton() {
           {Array.from({ length: 8 }).map((_, i) => (
             <tr key={i}>
               <td className="px-4 py-3">
-                <div className="mb-1 h-4 w-28 animate-pulse rounded bg-muted" />
-                <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+                <div className="h-4 w-28 bg-muted rounded animate-pulse mb-1" />
+                <div className="h-3 w-20 bg-muted rounded animate-pulse" />
               </td>
-              <td className="px-4 py-3">
-                <div className="h-4 w-20 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="h-4 w-28 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="ml-auto h-4 w-20 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="mx-auto h-6 w-16 animate-pulse rounded bg-muted" />
-              </td>
+              <td className="px-4 py-3"><div className="h-4 w-20 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-28 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-32 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-20 bg-muted rounded animate-pulse ml-auto" /></td>
+              <td className="px-4 py-3"><div className="h-6 w-16 bg-muted rounded animate-pulse mx-auto" /></td>
             </tr>
           ))}
         </tbody>
@@ -118,34 +106,32 @@ async function NotasTabela({ params }: { params: PageParams }) {
   return (
     <>
       <div className="flex items-center gap-3">
-        <p className="text-sm text-muted-foreground">
-          {total} documento{total !== 1 ? "s" : ""}
-        </p>
+        <p className="text-sm text-muted-foreground">{total} documento{total !== 1 ? "s" : ""}</p>
         {comErro > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-            <FileText className="h-3 w-3" />
+          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+            <FileText className="w-3 h-3" />
             {comErro} com erro de PDF
           </span>
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-white">
-        <table className="w-full min-w-[600px] text-sm">
+      <div className="bg-white rounded-xl border border-border overflow-x-auto">
+        <table className="w-full text-sm min-w-[600px]">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Documento</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Tipo</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Data</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Cliente</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Total</th>
-              <th className="px-4 py-3 text-center font-medium text-muted-foreground">PDF</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Documento</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Tipo</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Data</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Cliente</th>
+              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Total</th>
+              <th className="text-center px-4 py-3 font-medium text-muted-foreground">PDF</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {notas.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                  <FileText className="mx-auto mb-2 h-8 w-8 opacity-30" />
+                  <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   Nenhum documento encontrado
                 </td>
               </tr>
@@ -153,7 +139,7 @@ async function NotasTabela({ params }: { params: PageParams }) {
               notas.map((nota) => (
                 <tr
                   key={nota.id}
-                  className={`transition-colors hover:bg-muted/30 ${nota.statusDoc === "ERRO_PDF" ? "bg-amber-50/40" : ""}`}
+                  className={`hover:bg-muted/30 transition-colors ${nota.statusDoc === "ERRO_PDF" ? "bg-amber-50/40" : ""}`}
                 >
                   <td className="px-4 py-3">
                     <span className="font-medium">
@@ -164,21 +150,13 @@ async function NotasTabela({ params }: { params: PageParams }) {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       {nota.tipo === "NOTA" ? (
-                        <>
-                          <FileText className="h-3.5 w-3.5 text-verde-claro" />
-                          <span>Nota Fiscal</span>
-                        </>
+                        <><FileText className="w-3.5 h-3.5 text-verde-claro" /><span>Nota Fiscal</span></>
                       ) : (
-                        <>
-                          <Receipt className="h-3.5 w-3.5 text-terra" />
-                          <span>Recibo</span>
-                        </>
+                        <><Receipt className="w-3.5 h-3.5 text-terra" /><span>Recibo</span></>
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDataHora(nota.emitidoEm)}
-                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatDataHora(nota.emitidoEm)}</td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {nota.nomeCliente || nota.cpfCnpj || "Não identificado"}
                   </td>
@@ -211,7 +189,7 @@ async function NotasTabela({ params }: { params: PageParams }) {
   );
 }
 
-// ���� NF-e Recebidas (importações XML) ��������������������������������������������������������������������������������
+// ── NF-e Recebidas (importações XML) ────────────────────────────────────────
 
 async function getEntradasXml({ q, pagina }: { q: string; pagina: number }) {
   const where = q
@@ -248,39 +226,24 @@ async function getEntradasXml({ q, pagina }: { q: string; pagina: number }) {
 
 function TabelaXmlSkeleton() {
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-white">
-      <table className="w-full min-w-[600px] text-sm">
+    <div className="bg-white rounded-xl border border-border overflow-x-auto">
+      <table className="w-full text-sm min-w-[600px]">
         <thead>
           <tr className="border-b border-border bg-muted/50">
             {["NF-e", "Fornecedor", "Data", "Itens", "Total", ""].map((h) => (
-              <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">
-                {h}
-              </th>
+              <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
             ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
           {Array.from({ length: 6 }).map((_, i) => (
             <tr key={i}>
-              <td className="px-4 py-3">
-                <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="mb-1 h-4 w-40 animate-pulse rounded bg-muted" />
-                <div className="h-3 w-28 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="h-4 w-28 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="h-4 w-12 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="ml-auto h-4 w-20 animate-pulse rounded bg-muted" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="h-7 w-20 animate-pulse rounded bg-muted" />
-              </td>
+              <td className="px-4 py-3"><div className="h-4 w-24 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-40 bg-muted rounded animate-pulse mb-1" /><div className="h-3 w-28 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-28 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-12 bg-muted rounded animate-pulse" /></td>
+              <td className="px-4 py-3"><div className="h-4 w-20 bg-muted rounded animate-pulse ml-auto" /></td>
+              <td className="px-4 py-3"><div className="h-7 w-20 bg-muted rounded animate-pulse" /></td>
             </tr>
           ))}
         </tbody>
@@ -309,17 +272,15 @@ async function EntradasXmlTabela({ params }: { params: PageParams }) {
         {total} NF-e{total !== 1 ? "s" : ""} importada{total !== 1 ? "s" : ""}
       </p>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-white">
-        <table className="w-full min-w-[600px] text-sm">
+      <div className="bg-white rounded-xl border border-border overflow-x-auto">
+        <table className="w-full text-sm min-w-[600px]">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">NF-e</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fornecedor</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                Importada em
-              </th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Itens</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Total</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">NF-e</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Fornecedor</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Importada em</th>
+              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Itens</th>
+              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Total</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -327,23 +288,21 @@ async function EntradasXmlTabela({ params }: { params: PageParams }) {
             {entradas.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                  <Truck className="mx-auto mb-2 h-8 w-8 opacity-30" />
+                  <Truck className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   Nenhuma NF-e importada ainda
                 </td>
               </tr>
             ) : (
               entradas.map((e) => (
-                <tr key={e.id} className="transition-colors hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium tabular-nums">Nº {e.numeroNf}</td>
+                <tr key={e.id} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-3 font-medium tabular-nums">
+                    Nº {e.numeroNf}
+                  </td>
                   <td className="px-4 py-3">
-                    <p className="font-medium leading-tight text-foreground">{e.nomeEmitente}</p>
-                    <p className="text-xs text-muted-foreground">
-                      CNPJ: {formatCNPJ(e.cnpjEmitente)}
-                    </p>
+                    <p className="font-medium text-foreground leading-tight">{e.nomeEmitente}</p>
+                    <p className="text-xs text-muted-foreground">CNPJ: {formatCNPJ(e.cnpjEmitente)}</p>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDataHora(e.importadoEm)}
-                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatDataHora(e.importadoEm)}</td>
                   <td className="px-4 py-3 text-right text-muted-foreground">{e._count.itens}</td>
                   <td className="px-4 py-3 text-right font-semibold text-verde-mata">
                     {formatBRL(Number(e.valorTotal))}
@@ -351,9 +310,9 @@ async function EntradasXmlTabela({ params }: { params: PageParams }) {
                   <td className="px-4 py-3 text-right">
                     <Link
                       href={`/notas/entrada/${e.id}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     >
-                      <PackageSearch className="h-3.5 w-3.5" />
+                      <PackageSearch className="w-3.5 h-3.5" />
                       Ver itens
                     </Link>
                   </td>
@@ -369,38 +328,23 @@ async function EntradasXmlTabela({ params }: { params: PageParams }) {
   );
 }
 
-// ���� Paginação ��������������������������������������������������������������������������������������������������������������������������������
+// ── Paginação ────────────────────────────────────────────────────────────────
 
-function Paginacao({
-  pagina,
-  paginas,
-  buildHref,
-}: {
-  pagina: number;
-  paginas: number;
-  buildHref: (p: number) => string;
-}) {
+function Paginacao({ pagina, paginas, buildHref }: { pagina: number; paginas: number; buildHref: (p: number) => string }) {
   const pages = buildPages(pagina, paginas);
   return (
     <div className="flex items-center justify-center gap-1.5">
       {pagina > 1 && (
-        <Link
-          href={buildHref(pagina - 1)}
-          className="rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
-        >
-          � �
-        </Link>
+        <Link href={buildHref(pagina - 1)} className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted transition-colors">←</Link>
       )}
       {pages.map((p, i) =>
         p === "..." ? (
-          <span key={`e-${i}`} className="px-2 text-sm text-muted-foreground">
-            ⬦
-          </span>
+          <span key={`e-${i}`} className="px-2 text-muted-foreground text-sm">…</span>
         ) : (
           <Link
             key={p}
             href={buildHref(p as number)}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors ${
+            className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors ${
               p === pagina ? "bg-verde-mata text-white" : "border border-border hover:bg-muted"
             }`}
           >
@@ -409,12 +353,7 @@ function Paginacao({
         )
       )}
       {pagina < paginas && (
-        <Link
-          href={buildHref(pagina + 1)}
-          className="rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
-        >
-          � 
-        </Link>
+        <Link href={buildHref(pagina + 1)} className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted transition-colors">→</Link>
       )}
     </div>
   );
@@ -430,135 +369,127 @@ function buildPages(current: number, total: number): (number | "...")[] {
   return pages;
 }
 
-// ���� Page ������������������������������������������������������������������������������������������������������������������������������������������
+// ── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function NotasPage({ searchParams }: { searchParams: Promise<PageParams> }) {
+export default async function NotasPage({
+  searchParams,
+}: {
+  searchParams: Promise<PageParams>;
+}) {
   const params = await searchParams;
   const tab = params.tab === "recebidas" ? "recebidas" : "emitidas";
   const q = (params.q ?? "").trim().slice(0, 80);
   const tipo = params.tipo ?? "";
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Notas e Recibos</h1>
+      <div className="space-y-5">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Notas e Recibos</h1>
+          {tab === "emitidas" && (
+            <Link
+              href="/notas/nova"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-verde-mata text-white rounded-lg text-sm font-medium hover:bg-verde-claro transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Nova Nota
+            </Link>
+          )}
+          {tab === "recebidas" && (
+            <Link
+              href="/estoque/importar-xml"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-verde-mata text-white rounded-lg text-sm font-medium hover:bg-verde-claro transition-colors"
+            >
+              <Truck className="w-4 h-4" />
+              Importar XML
+            </Link>
+          )}
+        </div>
+
+        {/* Abas */}
+        <div className="flex gap-1 border-b border-border">
+          <Link
+            href="/notas"
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === "emitidas"
+                ? "border-verde-mata text-verde-mata"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Emitidas
+          </Link>
+          <Link
+            href="/notas?tab=recebidas"
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === "recebidas"
+                ? "border-verde-mata text-verde-mata"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Truck className="w-4 h-4" />
+            NF-e Recebidas
+          </Link>
+        </div>
+
         {tab === "emitidas" && (
-          <Link
-            href="/notas/nova"
-            className="inline-flex items-center gap-2 rounded-lg bg-verde-mata px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-verde-claro"
-          >
-            <Plus className="h-4 w-4" />
-            Nova Nota
-          </Link>
+          <>
+            <form className="flex flex-wrap gap-2" method="GET">
+              <input
+                name="q"
+                defaultValue={q}
+                placeholder="Buscar por cliente ou CPF/CNPJ..."
+                className="flex-1 min-w-[200px] max-w-sm px-3.5 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
+              />
+              <select
+                name="tipo"
+                defaultValue={tipo}
+                className="px-3 py-2 rounded-lg border border-border text-sm bg-background focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
+              >
+                <option value="">Todos os tipos</option>
+                <option value="NOTA">Nota Fiscal</option>
+                <option value="RECIBO">Recibo</option>
+              </select>
+              <button type="submit" className="px-4 py-2 bg-verde-mata text-white rounded-lg text-sm hover:bg-verde-claro transition-colors">
+                Buscar
+              </button>
+              {(q || tipo) && (
+                <Link href="/notas" className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
+                  Limpar
+                </Link>
+              )}
+            </form>
+
+            <Suspense key={`emitidas-${JSON.stringify(params)}`} fallback={<TabelaSkeleton />}>
+              <NotasTabela params={params} />
+            </Suspense>
+          </>
         )}
+
         {tab === "recebidas" && (
-          <Link
-            href="/estoque/importar-xml"
-            className="inline-flex items-center gap-2 rounded-lg bg-verde-mata px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-verde-claro"
-          >
-            <Truck className="h-4 w-4" />
-            Importar XML
-          </Link>
+          <>
+            <form className="flex flex-wrap gap-2" method="GET">
+              <input type="hidden" name="tab" value="recebidas" />
+              <input
+                name="q"
+                defaultValue={q}
+                placeholder="Buscar por fornecedor, CNPJ ou nº NF-e..."
+                className="flex-1 min-w-[200px] max-w-sm px-3.5 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-verde-mata/30 focus:border-verde-mata"
+              />
+              <button type="submit" className="px-4 py-2 bg-verde-mata text-white rounded-lg text-sm hover:bg-verde-claro transition-colors">
+                Buscar
+              </button>
+              {q && (
+                <Link href="/notas?tab=recebidas" className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
+                  Limpar
+                </Link>
+              )}
+            </form>
+
+            <Suspense key={`recebidas-${JSON.stringify(params)}`} fallback={<TabelaXmlSkeleton />}>
+              <EntradasXmlTabela params={params} />
+            </Suspense>
+          </>
         )}
       </div>
-
-      {/* Abas */}
-      <div className="flex gap-1 border-b border-border">
-        <Link
-          href="/notas"
-          className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-            tab === "emitidas"
-              ? "border-verde-mata text-verde-mata"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <FileText className="h-4 w-4" />
-          Emitidas
-        </Link>
-        <Link
-          href="/notas?tab=recebidas"
-          className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-            tab === "recebidas"
-              ? "border-verde-mata text-verde-mata"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Truck className="h-4 w-4" />
-          NF-e Recebidas
-        </Link>
-      </div>
-
-      {tab === "emitidas" && (
-        <>
-          <form className="flex flex-wrap gap-2" method="GET">
-            <input
-              name="q"
-              defaultValue={q}
-              placeholder="Buscar por cliente ou CPF/CNPJ..."
-              className="min-w-[200px] max-w-sm flex-1 rounded-lg border border-border px-3.5 py-2 text-sm focus:border-verde-mata focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
-            />
-            <select
-              name="tipo"
-              defaultValue={tipo}
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-verde-mata focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
-            >
-              <option value="">Todos os tipos</option>
-              <option value="NOTA">Nota Fiscal</option>
-              <option value="RECIBO">Recibo</option>
-            </select>
-            <button
-              type="submit"
-              className="rounded-lg bg-verde-mata px-4 py-2 text-sm text-white transition-colors hover:bg-verde-claro"
-            >
-              Buscar
-            </button>
-            {(q || tipo) && (
-              <Link
-                href="/notas"
-                className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
-              >
-                Limpar
-              </Link>
-            )}
-          </form>
-
-          <Suspense key={`emitidas-${JSON.stringify(params)}`} fallback={<TabelaSkeleton />}>
-            <NotasTabela params={params} />
-          </Suspense>
-        </>
-      )}
-
-      {tab === "recebidas" && (
-        <>
-          <form className="flex flex-wrap gap-2" method="GET">
-            <input type="hidden" name="tab" value="recebidas" />
-            <input
-              name="q"
-              defaultValue={q}
-              placeholder="Buscar por fornecedor, CNPJ ou nº NF-e..."
-              className="min-w-[200px] max-w-sm flex-1 rounded-lg border border-border px-3.5 py-2 text-sm focus:border-verde-mata focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
-            />
-            <button
-              type="submit"
-              className="rounded-lg bg-verde-mata px-4 py-2 text-sm text-white transition-colors hover:bg-verde-claro"
-            >
-              Buscar
-            </button>
-            {q && (
-              <Link
-                href="/notas?tab=recebidas"
-                className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
-              >
-                Limpar
-              </Link>
-            )}
-          </form>
-
-          <Suspense key={`recebidas-${JSON.stringify(params)}`} fallback={<TabelaXmlSkeleton />}>
-            <EntradasXmlTabela params={params} />
-          </Suspense>
-        </>
-      )}
-    </div>
   );
 }
