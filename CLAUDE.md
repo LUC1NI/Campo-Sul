@@ -177,7 +177,7 @@ type Unidade = "UN" | "KG" | "L" | "SACO" | "CX" | "M";
 ```
 
 ## Decisões e débitos técnicos
-- `src/app/(app)/` route group planejado mas implementado como AppLayout componente importado em cada página (evita conflito de rota). Funciona igual.
+- `src/app/(app)/` route group implementado em 2026-05-19: shell (sidebar/topbar) persiste entre navegações via `(app)/layout.tsx` único. `loading.tsx` no nível do grupo dá feedback instantâneo. Rotas protegidas: dashboard, vendas, estoque, notas, relatorios, usuarios.
 - `pnpm dlx shadcn@latest init` não foi rodado — shadcn components devem ser instalados manualmente conforme necessário
 - Import alias `@react-pdf/renderer` usa `renderToBuffer` (server-side) — não importar em Client Components
 - A imagem hero da landing usa pattern SVG inline — substituir por foto real de campo em produção
