@@ -128,6 +128,8 @@ Focus NFe: `src/lib/focusnfe.ts` criado, aguardando token de produção da clien
 - [x] `suppressHydrationWarning` nos totais do painel de pagamento
 - [x] `<button>` dentro de `<button>` corrigido na busca de produto
 
+**Backlog de qualidade (P0/P1/P2): ver `BACKLOG.md`.**
+
 **Pendente (bloqueado por cliente):**
 - [ ] Conectar Focus NFe no PDV e em /notas — aguarda `FOCUSNFE_TOKEN` de produção
 - [ ] Variáveis de empresa no Vercel: `EMPRESA_RAZAO_SOCIAL`, `EMPRESA_CNPJ`, `EMPRESA_IE`, `EMPRESA_ENDERECO`, `EMPRESA_FONE`
