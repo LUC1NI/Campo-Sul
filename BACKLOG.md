@@ -11,7 +11,8 @@ Levantado em 2026-09-29 (auditoria geral). Marque `[x]` ao concluir, com o commi
 
 ## P1 — qualidade profissional
 - [x] **CI** — `.github/workflows/ci.yml`: typecheck + lint + testes + audit (high) em push/PR. Build fica com o Vercel.
-- [ ] **Testes de integração** — Server Actions de venda, cancelamento e importação (hoje só lógica pura é testada).
+- [x] **Testes de integração** — `tests/vendas.integration.test.ts`: venda inteira/fracionada, preço do catálogo, idempotência, produto inativo, cancelamento (estoque exato, duplo cancelamento, permissão). Postgres real via PGlite, sem Docker. Validado com teste de mutação.
+- [ ] **Testes de integração — importação XML/TXT e usuários** (próxima leva).
 - [ ] **Monitoramento de erros em produção** — hoje só descobrimos erro quando a cliente reclama.
 
 ## P2 — produto, UX, legal
