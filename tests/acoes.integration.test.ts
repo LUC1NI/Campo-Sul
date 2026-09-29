@@ -1,5 +1,5 @@
 /**
- * Integração: Server Actions de venda/cancelamento contra Postgres real
+ * Integração: Server Actions (venda, cancelamento, importação NF-e) contra Postgres real
  * (PGlite exposto via socket — Prisma conecta como num banco normal, sem Docker).
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
@@ -17,6 +17,7 @@ let db: PGlite;
 let srv: PGLiteSocketServer;
 let prisma: typeof import("@/lib/prisma").prisma;
 let acoes: typeof import("@/app/actions/vendas");
+let xml: typeof import("@/app/actions/xml");
 let racaoId: string; // SACO de 25 kg, fracionável
 let marteloId: string; // UN
 
@@ -50,6 +51,7 @@ beforeAll(async () => {
 
   ({ prisma } = await import("@/lib/prisma"));
   acoes = await import("@/app/actions/vendas");
+  xml = await import("@/app/actions/xml");
 
   const admin = await prisma.usuario.create({
     data: { email: "admin@teste", nome: "Admin", senhaHash: "x", role: "ADMIN" },
@@ -160,5 +162,78 @@ describe("cancelarVenda", () => {
     sessao.user.role = "ADMIN";
     expect(c.ok).toBe(false);
     expect((await prisma.venda.findUniqueOrThrow({ where: { id: r.data.vendaId } })).status).toBe("CONCLUIDA");
+  });
+});
+
+describe("confirmarImportacaoXml", () => {
+  const CHAVE = "41260500000000000100550010000012341000012345";
+  const item = (o: { gtin: string | null; produtoId: string | null; quantidade: string; descricao?: string }) => ({
+    descricao: o.descricao ?? "Item", unidadeNfe: "UN", valorUnitario: "10", valorTotal: "10",
+    unidadeMapeada: "UN" as const, ...o,
+  });
+  const importar = (itens: ReturnType<typeof item>[]) =>
+    xml.confirmarImportacaoXml({
+      chaveAcesso: CHAVE, numeroNf: "1234", cnpjEmitente: "00000000000100",
+      nomeEmitente: "Fornecedor", valorTotal: "100", xmlOriginal: "<x/>", itens,
+    });
+
+  it("soma estoque do existente, cria novo uma vez por GTIN e bloqueia reimportação", async () => {
+    const antes = Number((await estoque(marteloId)).quantidade);
+    const r = await importar([
+      item({ gtin: null, produtoId: marteloId, quantidade: "3" }),
+      item({ gtin: "7890000000017", produtoId: null, quantidade: "2", descricao: "Arame" }),
+      item({ gtin: "7890000000017", produtoId: null, quantidade: "4", descricao: "Arame" }),
+    ]);
+    expect(r).toEqual({ ok: true, novos: 1, atualizados: 2 });
+    expect(Number((await estoque(marteloId)).quantidade)).toBe(antes + 3);
+
+    const arame = await prisma.produto.findUniqueOrThrow({ where: { gtin: "7890000000017" } });
+    expect(arame.quantidade.toString()).toBe("6");
+    expect(await prisma.movimentoEstoque.count({ where: { tipo: "ENTRADA_XML" } })).toBe(3);
+
+    const denovo = await importar([item({ gtin: null, produtoId: marteloId, quantidade: "3" })]);
+    expect(denovo).toEqual({ ok: false, erro: "Esta NF-e já foi importada anteriormente." });
+    expect(Number((await estoque(marteloId)).quantidade)).toBe(antes + 3);
+  });
+
+  it("funcionário não importa", async () => {
+    sessao.user.role = "FUNCIONARIO";
+    const r = await xml.confirmarImportacaoXml({
+      chaveAcesso: "4".repeat(44), numeroNf: "1", cnpjEmitente: "1", nomeEmitente: "F",
+      valorTotal: "1", xmlOriginal: "<x/>", itens: [item({ gtin: null, produtoId: marteloId, quantidade: "1" })],
+    });
+    sessao.user.role = "ADMIN";
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("atualizarUsuario", () => {
+  it("trocar só o nome não derruba a sessão; trocar senha derruba", async () => {
+    const u = await prisma.usuario.create({
+      data: { email: "func@teste.com", nome: "Func", senhaHash: "x", role: "FUNCIONARIO" },
+    });
+    const { atualizarUsuario } = await import("@/app/actions/usuarios");
+    const base = { email: "func@teste.com", role: "FUNCIONARIO" as const, ativo: true };
+
+    expect((await atualizarUsuario(u.id, { ...base, nome: "Funcionário" })).ok).toBe(true);
+    const r1 = await prisma.usuario.findUniqueOrThrow({ where: { id: u.id } });
+    expect(r1.nome).toBe("Funcionário");
+    expect(r1.updatedAt.getTime()).toBe(u.updatedAt.getTime());
+
+    expect((await atualizarUsuario(u.id, { ...base, nome: "Funcionário", novaSenha: "nova-senha-123" })).ok).toBe(true);
+    const r2 = await prisma.usuario.findUniqueOrThrow({ where: { id: u.id } });
+    expect(r2.updatedAt.getTime()).toBeGreaterThan(u.updatedAt.getTime());
+  });
+
+  it("não deixa o sistema sem admin ativo", async () => {
+    const outro = await prisma.usuario.create({
+      data: { email: "admin2@teste.com", nome: "Admin 2", senhaHash: "x", role: "ADMIN" },
+    });
+    const { atualizarUsuario } = await import("@/app/actions/usuarios");
+    // desativa o admin da sessão pelo banco, sobrando só "outro"
+    await prisma.usuario.update({ where: { id: sessao.user.id }, data: { ativo: false } });
+    const r = await atualizarUsuario(outro.id, { nome: "Admin 2", email: "admin2@teste.com", role: "FUNCIONARIO", ativo: true });
+    await prisma.usuario.update({ where: { id: sessao.user.id }, data: { ativo: true } });
+    expect(r).toEqual({ ok: false, erro: "O sistema precisa de pelo menos um administrador ativo." });
   });
 });

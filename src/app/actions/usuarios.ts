@@ -117,7 +117,18 @@ export async function atualizarUsuario(
     // Nunca deixar o sistema sem admin ativo (ex: dois admins rebaixando um ao outro).
     // Atualizar o usuário também invalida as sessões dele (ver callback jwt em lib/auth.ts).
     await transacaoSerializavel(async (tx) => {
-      await tx.usuario.update({ where: { id }, data: updateData });
+      const atual = await tx.usuario.findUniqueOrThrow({
+        where: { id },
+        select: { role: true, ativo: true, updatedAt: true },
+      });
+      // updatedAt funciona como "carimbo de segurança" no callback jwt: só avança
+      // (derrubando sessões) se mudar senha, função ou ativação. Trocar nome/e-mail não desloga.
+      const mudouSeguranca =
+        !!updateData.senhaHash || atual.role !== updateData.role || atual.ativo !== updateData.ativo;
+      await tx.usuario.update({
+        where: { id },
+        data: mudouSeguranca ? updateData : { ...updateData, updatedAt: atual.updatedAt },
+      });
       const admins = await tx.usuario.count({ where: { role: "ADMIN", ativo: true } });
       if (admins === 0) throw new Error("O sistema precisa de pelo menos um administrador ativo.");
     });
