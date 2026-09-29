@@ -1,6 +1,8 @@
 import { XMLParser } from "fast-xml-parser";
 
 export interface ItemNfe {
+  /** Código do produto no cadastro do fornecedor (cProd) — estável mesmo se o nome mudar. */
+  codigoFornecedor: string | null;
   gtin: string | null;
   descricao: string;
   unidadeComercial: string;
@@ -57,6 +59,7 @@ export function parseNfeXml(xmlContent: string): NfeParseResult {
     const gtin = GTIN_VAZIO.includes(gtinRaw) ? null : gtinRaw;
 
     return {
+      codigoFornecedor: String(prod.cProd ?? "").trim().slice(0, 60) || null,
       gtin,
       descricao: String(prod.xProd ?? ""),
       unidadeComercial: String(prod.uCom ?? "UN"),

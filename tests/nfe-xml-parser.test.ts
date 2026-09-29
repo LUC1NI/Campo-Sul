@@ -3,7 +3,7 @@ import { parseNfeXml } from "@/lib/nfe-xml-parser";
 
 const det = (n: number, cEAN: string, xProd: string) => `
   <det nItem="${n}"><prod>
-    <cEAN>${cEAN}</cEAN><xProd>${xProd}</xProd><uCom>SC</uCom>
+    <cProd>F-${n}</cProd><cEAN>${cEAN}</cEAN><xProd>${xProd}</xProd><uCom>SC</uCom>
     <qCom>2.0000</qCom><vUnCom>89.9000000000</vUnCom><vProd>179.80</vProd>
   </prod></det>`;
 
@@ -26,6 +26,7 @@ describe("parseNfeXml", () => {
     expect(r.valorTotal).toBe("359.60");
     expect(r.itens).toHaveLength(2);
     expect(r.itens[0]).toEqual({
+      codigoFornecedor: "F-1",
       gtin: "07891234567895",
       descricao: "RACAO 25KG",
       unidadeComercial: "SC",

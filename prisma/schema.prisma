@@ -269,4 +269,12 @@ model ItemEntradaXml {
   valorUnitario Decimal  @db.Decimal(14, 4)
   valorTotal  Decimal    @db.Decimal(14, 2)
   criouProduto Boolean   @default(false)
+
+  // Memória por fornecedor: cProd da nota + quanto entrou no estoque por unidade da nota
+  // (ex: nota em CX, produto em UN → 12). Reaplicados na próxima importação do mesmo CNPJ.
+  codigoFornecedor String?
+  fatorConversao   Decimal  @db.Decimal(14, 6) @default(1)
+
+  @@index([codigoFornecedor])
+  @@index([produtoId])
 }

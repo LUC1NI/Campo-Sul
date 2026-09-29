@@ -165,42 +165,105 @@ describe("cancelarVenda", () => {
   });
 });
 
-describe("confirmarImportacaoXml", () => {
-  const CHAVE = "41260500000000000100550010000012341000012345";
-  const item = (o: { gtin: string | null; produtoId: string | null; quantidade: string; descricao?: string }) => ({
-    descricao: o.descricao ?? "Item", unidadeNfe: "UN", valorUnitario: "10", valorTotal: "10",
-    unidadeMapeada: "UN" as const, ...o,
-  });
-  const importar = (itens: ReturnType<typeof item>[]) =>
-    xml.confirmarImportacaoXml({
-      chaveAcesso: CHAVE, numeroNf: "1234", cnpjEmitente: "00000000000100",
-      nomeEmitente: "Fornecedor", valorTotal: "100", xmlOriginal: "<x/>", itens,
-    });
+describe("importação de NF-e", () => {
+  type Det = { cProd: string; ean?: string; nome: string; un: string; qtd: string; vUn: string; vProd: string };
+  let seq = 0;
+  const nota = (dets: Det[], cnpj = "11111111000111") => {
+    const chave = `4126050000000000010055001${String(++seq).padStart(9, "0")}1000012345`.slice(0, 44);
+    return `<?xml version="1.0"?><nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe Id="NFe${chave}">
+      <ide><nNF>${seq}</nNF></ide><emit><CNPJ>${cnpj}</CNPJ><xNome>Agro Fornecedor</xNome></emit>
+      ${dets.map((d, i) => `<det nItem="${i + 1}"><prod><cProd>${d.cProd}</cProd><cEAN>${d.ean ?? "SEM GTIN"}</cEAN>
+        <xProd>${d.nome}</xProd><uCom>${d.un}</uCom><qCom>${d.qtd}</qCom><vUnCom>${d.vUn}</vUnCom><vProd>${d.vProd}</vProd></prod></det>`).join("")}
+      <total><ICMSTot><vNF>1</vNF></ICMSTot></total></infNFe></NFe></nfeProc>`;
+  };
 
-  it("soma estoque do existente, cria novo uma vez por GTIN e bloqueia reimportação", async () => {
-    const antes = Number((await estoque(marteloId)).quantidade);
-    const r = await importar([
-      item({ gtin: null, produtoId: marteloId, quantidade: "3" }),
-      item({ gtin: "7890000000017", produtoId: null, quantidade: "2", descricao: "Arame" }),
-      item({ gtin: "7890000000017", produtoId: null, quantidade: "4", descricao: "Arame" }),
+  it("vincula existente (custo da última nota + GTIN aprendido) e cria novo sem GTIN", async () => {
+    const xmlA = nota([
+      { cProd: "MART-01", ean: "7890000000024", nome: "MARTELO UNHA 27MM", un: "UN", qtd: "3", vUn: "22.5", vProd: "67.50" },
+      { cProd: "SAL-30", nome: "SAL MINERAL BOVINO 30KG", un: "SC", qtd: "4", vUn: "80", vProd: "320.00" },
     ]);
-    expect(r).toEqual({ ok: true, novos: 1, atualizados: 2 });
-    expect(Number((await estoque(marteloId)).quantidade)).toBe(antes + 3);
+    const prev = await xml.parsearXml(xmlA);
+    if (!prev.ok) throw new Error(prev.erro);
+    expect(prev.data.itens[0].vinculo).toBeNull(); // nome diferente de "Martelo": não vincula sozinho
+    const antes = Number((await estoque(marteloId)).quantidade);
 
-    const arame = await prisma.produto.findUniqueOrThrow({ where: { gtin: "7890000000017" } });
-    expect(arame.quantidade.toString()).toBe("6");
-    expect(await prisma.movimentoEstoque.count({ where: { tipo: "ENTRADA_XML" } })).toBe(3);
+    const r = await xml.confirmarImportacaoXml({
+      xmlOriginal: xmlA,
+      itens: [{ produtoId: marteloId, qtdEstoque: "3" }, { produtoId: null, precoVenda: "110" }],
+    });
+    expect(r).toEqual({ ok: true, novos: 1, atualizados: 1, custosAtualizados: 1 });
+    const martelo = await prisma.produto.findUniqueOrThrow({ where: { id: marteloId } });
+    expect(Number(martelo.quantidade)).toBe(antes + 3);
+    expect(martelo.precoCusto.toString()).toBe("22.5");
+    expect(martelo.gtin).toBe("7890000000024");
 
-    const denovo = await importar([item({ gtin: null, produtoId: marteloId, quantidade: "3" })]);
-    expect(denovo).toEqual({ ok: false, erro: "Esta NF-e já foi importada anteriormente." });
-    expect(Number((await estoque(marteloId)).quantidade)).toBe(antes + 3);
+    const reimport = await xml.confirmarImportacaoXml({ xmlOriginal: xmlA, itens: [{ produtoId: marteloId, qtdEstoque: "3" }, { produtoId: null, precoVenda: "110" }] });
+    expect(reimport).toEqual({ ok: false, erro: "Esta NF-e já foi importada anteriormente." });
+  });
+
+  it("próxima nota do fornecedor: reconhece por GTIN e por código do fornecedor mesmo com nome mudado", async () => {
+    const xmlB = nota([
+      { cProd: "MART-01", ean: "7890000000024", nome: "MARTELO 27MM", un: "UN", qtd: "1", vUn: "25", vProd: "25.00" },
+      { cProd: "SAL-30", nome: "SAL MIN. BOV. 30 KG - NOVA EMBALAGEM", un: "SC", qtd: "2", vUn: "85", vProd: "170.00" },
+    ]);
+    const prev = await xml.parsearXml(xmlB);
+    if (!prev.ok) throw new Error(prev.erro);
+    expect(prev.data.itens[0].vinculo?.metodo).toBe("gtin");
+    expect(prev.data.itens[0].vinculo?.produto.id).toBe(marteloId);
+    expect(prev.data.itens[1].vinculo?.metodo).toBe("fornecedor");
+    expect(prev.data.itens[1].vinculo?.produto.nome).toBe("SAL MINERAL BOVINO 30KG");
+
+    // Outro fornecedor com o mesmo cProd NÃO herda a memória
+    const outro = await xml.parsearXml(nota([{ cProd: "SAL-30", nome: "CIMENTO 50KG", un: "SC", qtd: "1", vUn: "40", vProd: "40.00" }], "22222222000122"));
+    if (!outro.ok) throw new Error(outro.erro);
+    expect(outro.data.itens[0].vinculo).toBeNull();
+  });
+
+  it("nome parecido vira sugestão (nunca vínculo) e medidas diferentes não são sugeridas", async () => {
+    const prev = await xml.parsearXml(
+      nota([
+        { cProd: "R-25", nome: "RACAO CAES 25 KG", un: "SC", qtd: "1", vUn: "70", vProd: "70.00" },
+        { cProd: "R-40", nome: "RACAO CAES 40KG", un: "SC", qtd: "1", vUn: "90", vProd: "90.00" },
+      ], "33333333000133")
+    );
+    if (!prev.ok) throw new Error(prev.erro);
+    expect(prev.data.itens[0].vinculo).toBeNull();
+    expect(prev.data.itens[0].sugestoes.map((s) => s.id)).toContain(racaoId);
+    expect(prev.data.itens[1].sugestoes.map((s) => s.id)).not.toContain(racaoId);
+  });
+
+  it("nota em KG entrando em produto em SACO: converte estoque e custo, e memoriza o fator", async () => {
+    const antes = Number((await estoque(racaoId)).quantidade);
+    const xmlKg = nota([{ cProd: "RAC-KG", nome: "RACAO GRANEL", un: "KG", qtd: "500", vUn: "3", vProd: "1500.00" }], "44444444000144");
+    const r = await xml.confirmarImportacaoXml({ xmlOriginal: xmlKg, itens: [{ produtoId: racaoId, qtdEstoque: "20" }] });
+    expect(r.ok).toBe(true);
+    const racao = await prisma.produto.findUniqueOrThrow({ where: { id: racaoId } });
+    expect(Number(racao.quantidade)).toBe(antes + 20);
+    expect(racao.precoCusto.toString()).toBe("75"); // R$ 1500 ÷ 20 sacos
+
+    const prox = await xml.parsearXml(nota([{ cProd: "RAC-KG", nome: "RACAO GRANEL", un: "KG", qtd: "250", vUn: "3", vProd: "750.00" }], "44444444000144"));
+    if (!prox.ok) throw new Error(prox.erro);
+    expect(prox.data.itens[0].vinculo?.produto.id).toBe(racaoId);
+    expect(prox.data.itens[0].fatorHistorico).toEqual({ produtoId: racaoId, fator: "0.04" });
+  });
+
+  it("valida decisões: quantidade do existente, preço do novo e itens da nota", async () => {
+    const x = nota([{ cProd: "V-1", nome: "BALDE", un: "UN", qtd: "1", vUn: "10", vProd: "10.00" }]);
+    expect(await xml.confirmarImportacaoXml({ xmlOriginal: x, itens: [{ produtoId: marteloId }] })).toEqual({
+      ok: false, erro: "Informe quanto entra no estoque para: BALDE",
+    });
+    expect(await xml.confirmarImportacaoXml({ xmlOriginal: x, itens: [{ produtoId: null }] })).toEqual({
+      ok: false, erro: "Informe o preço de venda para: BALDE",
+    });
+    const r = await xml.confirmarImportacaoXml({ xmlOriginal: x, itens: [{ produtoId: null, precoVenda: "1" }, { produtoId: null, precoVenda: "1" }] });
+    expect(r.ok).toBe(false);
   });
 
   it("funcionário não importa", async () => {
     sessao.user.role = "FUNCIONARIO";
     const r = await xml.confirmarImportacaoXml({
-      chaveAcesso: "4".repeat(44), numeroNf: "1", cnpjEmitente: "1", nomeEmitente: "F",
-      valorTotal: "1", xmlOriginal: "<x/>", itens: [item({ gtin: null, produtoId: marteloId, quantidade: "1" })],
+      xmlOriginal: nota([{ cProd: "X", nome: "X", un: "UN", qtd: "1", vUn: "1", vProd: "1.00" }]),
+      itens: [{ produtoId: marteloId, qtdEstoque: "1" }],
     });
     sessao.user.role = "ADMIN";
     expect(r.ok).toBe(false);
