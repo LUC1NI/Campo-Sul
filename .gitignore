@@ -52,3 +52,6 @@ next-env.d.ts
 docs/*.xml
 docs/*.TXT
 docs/*.txt
+
+# QA local (banco PGlite de teste)
+.qa/

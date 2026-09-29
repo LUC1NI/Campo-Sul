@@ -57,13 +57,19 @@ function numeroBate(a: string, b: string) {
   return /^[\d.x]+$/.test(curto) && longo.startsWith(curto) && /^[a-z]+$/.test(longo.slice(curto.length));
 }
 
-function medidasBatem(a: Set<string>, b: Set<string>) {
-  if (a.size !== b.size) return false;
-  const restantes = [...b];
-  return [...a].every((x) => {
+/**
+ * "todas": mesmas medidas. "contidas": todas as medidas do nome menor aparecem no maior
+ * (a nota traz informação extra, ex: "(11,4KG A 57KG)"). "diferentes": alguma medida conflita.
+ */
+function compararMedidas(a: Set<string>, b: Set<string>): "todas" | "contidas" | "diferentes" {
+  const [menor, maior] = a.size <= b.size ? [a, b] : [b, a];
+  const restantes = [...maior];
+  const cabe = [...menor].every((x) => {
     const i = restantes.findIndex((y) => numeroBate(x, y));
     return i >= 0 && restantes.splice(i, 1).length > 0;
   });
+  if (!cabe) return "diferentes";
+  return restantes.length === 0 ? "todas" : "contidas";
 }
 
 /** 0 a 1. Zero se os dois nomes têm medidas e elas diferem. */
@@ -72,7 +78,9 @@ export function similaridade(a: NomeTokenizado, b: NomeTokenizado): number {
 
   let penalidade = 1;
   if (a.numeros.size && b.numeros.size) {
-    if (!medidasBatem(a.numeros, b.numeros)) return 0;
+    const medidas = compararMedidas(a.numeros, b.numeros);
+    if (medidas === "diferentes") return 0;
+    if (medidas === "contidas") penalidade = 0.85;
   } else if (a.numeros.size || b.numeros.size) {
     penalidade = 0.85; // um lado não informa medida: ainda pode ser o mesmo, com menos confiança
   }
@@ -95,6 +103,13 @@ export function mesmoNome(a: NomeTokenizado, b: NomeTokenizado): boolean {
 
 export const SIMILARIDADE_MINIMA = 0.6;
 
+/** Remove os tokens (só servem para comparar) antes de devolver o produto. */
+export function semTokens<T extends { tokens: NomeTokenizado }>(p: T): Omit<T, "tokens"> {
+  const copia: Partial<T> = { ...p };
+  delete copia.tokens;
+  return copia as Omit<T, "tokens">;
+}
+
 // ponytail: compara contra o catálogo inteiro em memória (ok até ~20 mil produtos); acima disso, pg_trgm.
 export function melhoresCandidatos<T extends { nome: string }>(
   nomeNota: string,
@@ -107,10 +122,7 @@ export function melhoresCandidatos<T extends { nome: string }>(
     .filter((x) => x.score >= SIMILARIDADE_MINIMA)
     .sort((x, y) => y.score - x.score)
     .slice(0, limite)
-    .map(({ p, score }) => {
-      const { tokens: _tokens, ...resto } = p;
-      return { ...(resto as unknown as T), score: Math.round(score * 100) / 100 };
-    });
+    .map(({ p, score }) => ({ ...(semTokens(p) as unknown as T), score: Math.round(score * 100) / 100 }));
 }
 
 export interface ProdutoUnidade {

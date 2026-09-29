@@ -34,6 +34,15 @@ describe("similaridade de nomes", () => {
     expect(sim("VERMIFUGO BOVINO", "CARRAPATICIDA POUR ON")).toBe(0);
   });
 
+  it("nota com medidas a mais (casos reais) ainda sugere, com confiança menor", () => {
+    const extra = sim("INVICTO 57 MG 20 COMPRIMIDOS (11,4KG A 57KG)", "INVICTO 57MG 20 COMP");
+    expect(extra).toBeGreaterThanOrEqual(SIMILARIDADE_MINIMA);
+    expect(extra).toBeLessThan(1);
+    expect(sim("RATOL GIRASSOL 1KG 20X50GR", "RATOL GIRASSOL 1 KG")).toBeGreaterThanOrEqual(SIMILARIDADE_MINIMA);
+    // mas medida conflitante continua bloqueando, mesmo com extras
+    expect(sim("INVICTO 11,4 MG ATE 11,4 KG 20 COMPRIMIDOS", "INVICTO 57MG 20 COMP")).toBe(0);
+  });
+
   it("um lado sem medida ainda pode sugerir, com confiança menor", () => {
     const comMedida = sim("SAL MINERAL BOVINO 30KG", "SAL MINERAL BOVINO 30KG");
     const semMedida = sim("SAL MINERAL BOVINO 30KG", "SAL MINERAL BOVINO");

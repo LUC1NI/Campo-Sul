@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Unidade } from "@prisma/client";
 import { parseNfeXml, type NfeParseResult } from "@/lib/nfe-xml-parser";
-import { tokenizarNome, mesmoNome, melhoresCandidatos } from "@/lib/nfe-correspondencia";
+import { tokenizarNome, mesmoNome, melhoresCandidatos, semTokens } from "@/lib/nfe-correspondencia";
 import { Decimal } from "decimal.js";
 import { requireAdmin, runAction } from "@/lib/auth-helpers";
 
@@ -191,10 +191,7 @@ export async function parsearXml(
 
       const alvo = tokenizarNome(item.descricao);
       const iguais = catalogo.filter((p) => mesmoNome(alvo, p.tokens));
-      if (iguais.length === 1) {
-        const { tokens: _t, ...produto } = iguais[0];
-        return { ...base, vinculo: { produto, metodo: "nome" as const } };
-      }
+      if (iguais.length === 1) return { ...base, vinculo: { produto: semTokens(iguais[0]), metodo: "nome" as const } };
       return { ...base, vinculo: null, sugestoes: melhoresCandidatos(item.descricao, catalogo) };
     });
 
