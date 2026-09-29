@@ -316,10 +316,12 @@ export function NovaNotaForm({ precoLivre }: { precoLivre: boolean }) {
                         step="0.01"
                         min="0.01"
                         value={item.precoUnitario}
+                        readOnly={!precoLivre}
+                        title={precoLivre ? undefined : "Só o administrador pode alterar o preço"}
                         onChange={(e) =>
                           atualizarItem(idx, "precoUnitario", Number(e.target.value))
                         }
-                        className="w-24 rounded border border-border px-2 py-1 text-right text-sm focus:outline-none focus:ring-1 focus:ring-verde-mata"
+                        className="w-24 rounded border border-border px-2 py-1 text-right text-sm read-only:bg-muted read-only:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-verde-mata"
                       />
                     </td>
                     <td className="py-2.5 text-right font-medium text-verde-mata">
