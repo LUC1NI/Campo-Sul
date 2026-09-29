@@ -3,7 +3,9 @@
 Levantado em 2026-09-29 (auditoria geral). Marque `[x]` ao concluir, com o commit.
 
 ## P0 — bloqueia produção
-- [ ] **Dependências vulneráveis** — `pnpm audit --prod`: 44 (5 críticas, 21 altas). next-auth/@auth/core (login), next, fast-xml-parser (XML NF-e), sharp, ws, postcss.
+- [x] **Dependências vulneráveis** — 44 → 1. Removidos 18 pacotes sem uso + Netlify; next 15.5.26, next-auth beta.32, fast-xml-parser 5 (coberto por `tests/nfe-xml-parser.test.ts`), overrides p/ postcss/nanoid/sharp.
+  - Risco aceito: `deepmerge-ts` (high) fixado pelo Prisma 6 CLI; só lê config local, sem entrada de usuário. Some ao migrar p/ Prisma 7.
+  - Login com next-auth beta.32 precisa ser re-testado no E2E abaixo.
 - [ ] **Teste ponta a ponta com banco real** — login, venda (inteira + fracionada), PDF nota/recibo, cancelamento, importação XML. *Bloqueado: banco da cliente* (`prisma/setup-supabase.sql`).
 - [ ] **Backup do banco** — Supabase free não tem backup baixável. `pg_dump` diário via GitHub Actions (custo zero). *Bloqueado: banco da cliente.*
 
