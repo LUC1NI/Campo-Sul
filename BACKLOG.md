@@ -10,7 +10,7 @@ Levantado em 2026-09-29 (auditoria geral). Marque `[x]` ao concluir, com o commi
 - [ ] **Backup do banco** — Supabase free não tem backup baixável. `pg_dump` diário via GitHub Actions (custo zero). *Bloqueado: banco da cliente.*
 
 ## P1 — qualidade profissional
-- [ ] **CI** — GitHub Actions: typecheck + lint + testes + audit em todo push/PR.
+- [x] **CI** — `.github/workflows/ci.yml`: typecheck + lint + testes + audit (high) em push/PR. Build fica com o Vercel.
 - [ ] **Testes de integração** — Server Actions de venda, cancelamento e importação (hoje só lógica pura é testada).
 - [ ] **Monitoramento de erros em produção** — hoje só descobrimos erro quando a cliente reclama.
 

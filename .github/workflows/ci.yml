@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [master, melhoria-geral]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualidade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test:run
+      # Barra vulnerabilidade alta/crítica nova. Exceções aceitas: pnpm.auditConfig no package.json.
+      - run: pnpm audit --prod --audit-level high
