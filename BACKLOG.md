@@ -7,7 +7,7 @@ Levantado em 2026-09-29 (auditoria geral). Marque `[x]` ao concluir, com o commi
   - Risco aceito: `deepmerge-ts` (high) fixado pelo Prisma 6 CLI; só lê config local, sem entrada de usuário. Some ao migrar p/ Prisma 7.
   - Login com next-auth beta.32 precisa ser re-testado no E2E abaixo.
 - [ ] **Teste ponta a ponta com banco real** — login, venda (inteira + fracionada), PDF nota/recibo, cancelamento, importação XML. *Bloqueado: banco da cliente* (`prisma/setup-supabase.sql`).
-- [ ] **Backup do banco** — Supabase free não tem backup baixável. `pg_dump` diário via GitHub Actions (custo zero). *Bloqueado: banco da cliente.*
+- [~] **Backup do banco** — `.github/workflows/backup.yml` pronto: `pg_dump` diário 03:00, criptografado AES256, 30 dias. *Falta: criar secrets `BACKUP_DATABASE_URL` + `BACKUP_PASSPHRASE` e rodar 1x manual + testar restore.*
 
 ## P1 — qualidade profissional
 - [x] **CI** — `.github/workflows/ci.yml`: typecheck + lint + testes + audit (high) em push/PR. Build fica com o Vercel.
