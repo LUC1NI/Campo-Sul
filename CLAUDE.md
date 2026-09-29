@@ -131,7 +131,8 @@ Focus NFe: `src/lib/focusnfe.ts` criado, aguardando token de produção da clien
 **Pendente (bloqueado por cliente):**
 - [ ] Conectar Focus NFe no PDV e em /notas — aguarda `FOCUSNFE_TOKEN` de produção
 - [ ] Variáveis de empresa no Vercel: `EMPRESA_RAZAO_SOCIAL`, `EMPRESA_CNPJ`, `EMPRESA_IE`, `EMPRESA_ENDERECO`, `EMPRESA_FONE`
-- [ ] Aplicar migration das novas indexes: `pnpm prisma migrate dev --name perf_indexes` (fazer no ambiente de dev com DIRECT_DATABASE_URL)
+- [ ] Criar banco na conta Supabase da cliente: rodar `prisma/setup-supabase.sql` no SQL Editor (schema + RLS + seed + admin + bucket; já marca as migrations como aplicadas). Depois disso, mudanças de schema via `pnpm prisma migrate deploy`
+- [ ] Regenerar `prisma/setup-supabase.sql` se o schema mudar antes do setup (`prisma migrate diff --from-empty --to-schema-datamodel`)
 
 **Focus NFe — variáveis necessárias (.env):**
 - `FOCUSNFE_TOKEN` — token produção
