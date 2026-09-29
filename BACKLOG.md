@@ -19,5 +19,6 @@ Levantado em 2026-09-29 (auditoria geral). Marque `[x]` ao concluir, com o commi
 
 ## P2 — produto, UX, legal
 - [ ] **LGPD** — CPF de clientes armazenado: política de privacidade + prazo de retenção.
-- [ ] **Acessibilidade/UX do PDV** — auditoria WCAG + teste com a operadora de caixa.
+- [x] **Acessibilidade — diálogos**: ConfirmDialog (role alertdialog, Esc, foco inicial em "Cancelar" p/ Enter acidental não confirmar ação destrutiva) e dialog-fracionado (role dialog). PDV já tinha atalhos F2–F4/Enter/Esc e aria-labels.
+- [ ] **Teste de uso com a operadora de caixa** — observar 1 turno real; só ela revela atrito de fluxo. *Bloqueado: produção no ar.*
 - [ ] **Documento não fiscal** — termo de ciência por escrito com a cliente (risco se usar como NF).

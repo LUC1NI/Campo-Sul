@@ -98,7 +98,12 @@ export function DialogFracionado({ aberto, produto, onFechar, onConfirmar }: Pro
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onFechar} />
 
-      <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="titulo-fracionado"
+        className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+      >
         <button
           onClick={onFechar}
           className="absolute right-4 top-4 text-muted-foreground transition-colors hover:text-foreground"
@@ -114,7 +119,7 @@ export function DialogFracionado({ aberto, produto, onFechar, onConfirmar }: Pro
               <Package className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1 pr-6">
-              <h2 className="text-lg font-semibold leading-tight text-foreground">
+              <h2 id="titulo-fracionado" className="text-lg font-semibold leading-tight text-foreground">
                 {produto.nome}
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
