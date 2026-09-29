@@ -184,5 +184,5 @@ type Unidade = "UN" | "KG" | "L" | "SACO" | "CX" | "M";
 - `pnpm dlx shadcn@latest init` não foi rodado — shadcn components devem ser instalados manualmente conforme necessário
 - Import alias `@react-pdf/renderer` usa `renderToBuffer` (server-side) — não importar em Client Components
 - A imagem hero da landing usa pattern SVG inline — substituir por foto real de campo em produção
-- Fontes NotoSans hospedadas localmente em `public/fonts/` (Regular + Bold TTF). `recibo-doc.tsx` usa `path.join(process.cwd(), "public", "fonts", ...)` — sem dependência de CDN externo
+- Fontes NotoSans hospedadas localmente em `public/fonts/` (Regular + Bold TTF). `cupom-doc.tsx` usa `path.join(process.cwd(), "public", "fonts", ...)` — sem dependência de CDN externo
 - NF-e parser: `parseTagValue: false` + `isArray: (name) => name === "det"` — evita float em GTIN e garante array mesmo com 1 item

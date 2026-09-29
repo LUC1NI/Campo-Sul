@@ -19,7 +19,6 @@
     "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^6",
     "@react-pdf/renderer": "^4.9.0",
-    "@supabase/supabase-js": "^2.117.2",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
