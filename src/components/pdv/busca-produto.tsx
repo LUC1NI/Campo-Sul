@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { DialogFracionado, ProdutoFracionadoInfo } from "./dialog-fracionado";
 import { toast } from "sonner";
+import { precoDeCatalogo } from "@/lib/venda-calculo";
 
 type Unidade = "UN" | "KG" | "L" | "SACO" | "CX" | "M";
 
@@ -62,11 +63,8 @@ export function BuscaProduto({ inputRef }: BuscaProdutoProps) {
       const fracionado =
         modo === "fracionado" && p.podeFracionar && p.unidadeFracao && p.pesoUnidade;
       const unidade = fracionado ? p.unidadeFracao! : p.unidade;
-      const precoUnitario = fracionado
-        ? p.precoFracao
-          ? parseFloat(String(p.precoFracao))
-          : parseFloat(String(p.precoVenda)) / parseFloat(String(p.pesoUnidade))
-        : parseFloat(String(p.precoVenda));
+      // Mesma conta do servidor (4 casas), senão o total do caixa difere em centavos
+      const precoUnitario = precoDeCatalogo(p, unidade).toNumber();
       carrinhoStore.adicionarItem({
         produtoId: p.id,
         nome: p.nome,
@@ -90,9 +88,7 @@ export function BuscaProduto({ inputRef }: BuscaProdutoProps) {
     if (!p.podeFracionar || !p.unidadeFracao || !p.pesoUnidade) return;
     const precoInteiro = parseFloat(String(p.precoVenda));
     const pesoUnidade = parseFloat(String(p.pesoUnidade));
-    const precoFracao = p.precoFracao
-      ? parseFloat(String(p.precoFracao))
-      : precoInteiro / pesoUnidade;
+    const precoFracao = precoDeCatalogo(p, p.unidadeFracao).toNumber();
     setDialogFrac({
       produto: p,
       info: {
@@ -209,11 +205,7 @@ export function BuscaProduto({ inputRef }: BuscaProdutoProps) {
           {resultados.map((p, i) => {
             const isFrac = p.podeFracionar && p.unidadeFracao && p.pesoUnidade;
             const precoInteiro = Number(p.precoVenda);
-            const precoFrac = isFrac
-              ? p.precoFracao
-                ? Number(p.precoFracao)
-                : precoInteiro / Number(p.pesoUnidade)
-              : null;
+            const precoFrac = isFrac ? precoDeCatalogo(p, p.unidadeFracao!).toNumber() : null;
             const estoqueTotal = isFrac
               ? (Number(p.quantidade) * Number(p.pesoUnidade) - Number(p.saldoFracionado)).toFixed(
                   0

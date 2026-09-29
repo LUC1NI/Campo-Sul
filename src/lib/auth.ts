@@ -15,15 +15,14 @@ const loginSchema = z.object({
 const HASH_FALSO = "$2a$12$1Gd2Kz5nJS60iQzVF2M4JuTgQ8hcCTa2GONcN2qSN4jUfRI2YG11K";
 
 /**
- * IP real do cliente. Cabeçalhos definidos pela plataforma vêm primeiro
- * (Cloudflare/Vercel sobrescrevem, cliente não consegue forjar).
+ * IP real do cliente. Só cabeçalhos que a Vercel sobrescreve (cliente não forja).
+ * NÃO usar cf-connecting-ip: sem Cloudflare na frente, ele vem direto do cliente.
  * x-forwarded-for: usa o ÚLTIMO item (adicionado pelo proxy), não o primeiro.
  */
 function getClientIp(request?: Request): string | null {
   if (!request) return null;
   const h = request.headers;
-  const plataforma =
-    h.get("cf-connecting-ip") ?? h.get("x-vercel-forwarded-for") ?? h.get("x-real-ip");
+  const plataforma = h.get("x-vercel-forwarded-for") ?? h.get("x-real-ip");
   if (plataforma) return plataforma.trim();
   const fwd = h.get("x-forwarded-for");
   return fwd ? fwd.split(",").pop()!.trim() : null;

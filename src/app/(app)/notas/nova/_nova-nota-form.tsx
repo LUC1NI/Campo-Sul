@@ -60,7 +60,7 @@ function formatarDoc(tipo: TipoCliente, valor: string) {
   return valor;
 }
 
-export function NovaNotaForm() {
+export function NovaNotaForm({ precoLivre }: { precoLivre: boolean }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
