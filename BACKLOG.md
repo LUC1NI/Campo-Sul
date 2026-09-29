@@ -14,7 +14,8 @@ Levantado em 2026-09-29 (auditoria geral). Marque `[x]` ao concluir, com o commi
 - [x] **Testes de integração** — `tests/vendas.integration.test.ts`: venda inteira/fracionada, preço do catálogo, idempotência, produto inativo, cancelamento (estoque exato, duplo cancelamento, permissão). Postgres real via PGlite, sem Docker. Validado com teste de mutação.
 - [x] **Testes de integração — importação XML e usuários** — `tests/acoes.integration.test.ts` (51 testes no total).
   - Bug corrigido: editar nome/e-mail de usuário derrubava a sessão dele (agora só senha/função/ativação).
-- [ ] **Monitoramento de erros em produção** — hoje só descobrimos erro quando a cliente reclama.
+- [x] **Monitoramento de erros (nível 1)** — telas de erro pt-BR (`(app)/error.tsx`, `global-error.tsx`, `not-found.tsx`) com código `digest`; `instrumentation.ts` loga todo erro de servidor em JSON no Vercel (sem query string/PII).
+- [ ] **Alertas ativos** (Sentry free ou similar) — só se a retenção de logs do Vercel Hobby não bastar. Precisa de conta.
 
 ## P2 — produto, UX, legal
 - [ ] **LGPD** — CPF de clientes armazenado: política de privacidade + prazo de retenção.
