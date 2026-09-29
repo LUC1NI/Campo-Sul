@@ -18,5 +18,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: string;
+    /** epoch ms do login — sessões anteriores à última edição do usuário são invalidadas */
+    loginEm?: number;
   }
 }

@@ -1,8 +1,10 @@
 export const dynamic = "force-dynamic";
+import { requireAdminPage } from "@/lib/auth-helpers";
 
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
-import { formatBRL, formatData } from "@/lib/format";
+import { produtosAbaixoDoMinimo } from "@/lib/estoque-baixo";
+import { formatBRL, formatData, inicioDoDiaSP, inicioDoMesSP, diaDaSemanaSP } from "@/lib/format";
 import Link from "next/link";
 import {
   BarChart3, Package, TrendingUp, ShoppingCart,
@@ -34,15 +36,14 @@ const UNIDADE_LABEL: Record<string, string> = {
 };
 
 function getIntervalo(periodo: Periodo) {
-  const now = new Date();
-  const inicioHoje = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const fimHoje = new Date(inicioHoje.getTime() + 86400000);
+  const inicioHoje = inicioDoDiaSP();
+  const fimHoje = inicioDoDiaSP(new Date(), 1);
 
   if (periodo === "semana") {
-    const dow = inicioHoje.getDay();
+    const dow = diaDaSemanaSP();
     const diffLun = dow === 0 ? 6 : dow - 1;
-    const inicioSemana = new Date(inicioHoje.getTime() - diffLun * 86400000);
-    const inicioSemanaAnt = new Date(inicioSemana.getTime() - 7 * 86400000);
+    const inicioSemana = inicioDoDiaSP(new Date(), -diffLun);
+    const inicioSemanaAnt = inicioDoDiaSP(new Date(), -diffLun - 7);
     return {
       inicio: inicioSemana, fim: fimHoje,
       inicioAnt: inicioSemanaAnt, fimAnt: inicioSemana,
@@ -51,8 +52,8 @@ function getIntervalo(periodo: Periodo) {
   }
 
   if (periodo === "mes") {
-    const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
-    const inicioMesAnt = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const inicioMes = inicioDoMesSP();
+    const inicioMesAnt = inicioDoMesSP(new Date(), -1);
     return {
       inicio: inicioMes, fim: fimHoje,
       inicioAnt: inicioMesAnt, fimAnt: inicioMes,
@@ -60,7 +61,7 @@ function getIntervalo(periodo: Periodo) {
     };
   }
 
-  const inicioOntem = new Date(inicioHoje.getTime() - 86400000);
+  const inicioOntem = inicioDoDiaSP(new Date(), -1);
   return {
     inicio: inicioHoje, fim: fimHoje,
     inicioAnt: inicioOntem, fimAnt: inicioHoje,
@@ -93,12 +94,7 @@ async function getData(periodo: Periodo) {
       orderBy: { _sum: { total: "desc" } },
       take: 8,
     }),
-    prisma.produto.findMany({
-      where: { ativo: true, deletedAt: null, quantidadeMinima: { gt: 0 } },
-      select: { id: true, nome: true, quantidade: true, quantidadeMinima: true, unidade: true },
-      orderBy: { nome: "asc" },
-      take: 100,
-    }),
+    produtosAbaixoDoMinimo(20),
   ]);
 
   const topProdutosNorm = topProdutos.map((p) => ({
@@ -107,21 +103,7 @@ async function getData(periodo: Periodo) {
     total_val: String(p._sum.total ?? 0),
   }));
 
-  const produtosBaixosNorm = produtosBaixos
-    .filter((p) => Number(p.quantidade) <= Number(p.quantidadeMinima))
-    .sort((a, b) => {
-      const ra = Number(a.quantidade) / (Number(a.quantidadeMinima) || 1);
-      const rb = Number(b.quantidade) / (Number(b.quantidadeMinima) || 1);
-      return ra - rb;
-    })
-    .slice(0, 20)
-    .map((p) => ({
-      id: p.id,
-      nome: p.nome,
-      quantidade: String(p.quantidade),
-      quantidadeMinima: String(p.quantidadeMinima),
-      unidade: String(p.unidade),
-    }));
+  const produtosBaixosNorm = produtosBaixos;
 
   return {
     vendas, total: Number(totalAgg._sum.total ?? 0),
@@ -453,6 +435,7 @@ export default async function RelatoriosPage({
 }: {
   searchParams: Promise<{ periodo?: string }>;
 }) {
+  await requireAdminPage();
   const { periodo: periodoParam } = await searchParams;
   const periodo = (["hoje", "semana", "mes"].includes(periodoParam ?? "") ? periodoParam : "hoje") as Periodo;
 

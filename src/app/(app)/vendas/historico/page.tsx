@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+import { requireActiveUser } from "@/lib/auth-helpers";
 
 import { Suspense } from "react";
 import { buscarVendas } from "@/app/actions/vendas";
@@ -183,6 +184,7 @@ export default async function HistoricoVendasPage({
 }: {
   searchParams: Promise<PageParams>;
 }) {
+  await requireActiveUser();
   const params = await searchParams;
 
   const usuarios = await prisma.usuario.findMany({

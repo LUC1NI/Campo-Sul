@@ -1,9 +1,11 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { prisma, transacaoSerializavel } from "@/lib/prisma";
+import { Decimal } from "decimal.js";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Unidade } from "@prisma/client";
+import { parseDecimalBR } from "@/lib/venda-calculo";
 import {
   requireActiveUser,
   requireAdmin,
@@ -13,7 +15,8 @@ import {
 
 function normalizarNumero(v: string | null | undefined): string {
   if (!v) return "0";
-  return String(v).replace(",", ".").trim();
+  const n = parseDecimalBR(String(v));
+  return isNaN(n) ? "NaN" : String(n);
 }
 
 const REGEX_CODIGO = /^[A-Za-z0-9._-]+$/;
@@ -85,7 +88,7 @@ export async function criarProduto(
   formData: z.infer<typeof produtoSchema>
 ): Promise<ProdutoActionResult> {
   const r = await runAction("criarProduto", async () => {
-    await requireActiveUser();
+    await requireAdmin();
     const data = produtoSchema.parse(formData);
 
     const fracErr = validarFracionamento(data);
@@ -131,7 +134,7 @@ export async function atualizarProduto(
   formData: z.infer<typeof produtoSchema>
 ): Promise<ProdutoActionResult> {
   const r = await runAction("atualizarProduto", async () => {
-    await requireActiveUser();
+    await requireAdmin();
     if (!id || typeof id !== "string") throw new Error("ID inválido.");
 
     const data = produtoSchema.parse(formData);
@@ -188,15 +191,15 @@ export async function ajustarEstoque(
   formData: z.infer<typeof ajusteSchema>
 ): Promise<ProdutoActionResult> {
   const r = await runAction("ajustarEstoque", async () => {
-    const user = await requireActiveUser();
+    const user = await requireAdmin();
     if (!produtoId) throw new Error("Produto inválido.");
     const data = ajusteSchema.parse(formData);
     const novaQtd = normalizarNumero(data.novaQuantidade);
 
-    await prisma.$transaction(
+    await transacaoSerializavel(
       async (tx) => {
         const produto = await tx.produto.findUniqueOrThrow({ where: { id: produtoId } });
-        const diff = Number(novaQtd) - Number(produto.quantidade);
+        const diff = new Decimal(novaQtd).minus(String(produto.quantidade)).toFixed(4);
 
         await tx.produto.update({
           where: { id: produtoId },
@@ -207,14 +210,13 @@ export async function ajustarEstoque(
           data: {
             produtoId,
             tipo: "AJUSTE",
-            quantidade: String(diff),
+            quantidade: diff,
             saldoApos: novaQtd,
             observacao: data.observacao?.trim() || null,
             usuarioId: user.id,
           },
         });
-      },
-      { isolationLevel: "Serializable" }
+      }
     );
 
     revalidatePath("/estoque");
@@ -261,7 +263,7 @@ export type CategoriaResult = ActionResult<{ id: string; nome: string }>;
 
 export async function criarCategoria(nome: string): Promise<CategoriaResult> {
   return runAction("criarCategoria", async () => {
-    await requireActiveUser();
+    await requireAdmin();
     const nomeValidado = categoriaNomeSchema.parse(nome.trim());
     const cat = await prisma.categoria.upsert({
       where: { nome: nomeValidado },
@@ -280,7 +282,7 @@ export async function renomearCategoria(
   nome: string
 ): Promise<CategoriaResult> {
   return runAction("renomearCategoria", async () => {
-    await requireActiveUser();
+    await requireAdmin();
     const nomeValidado = categoriaNomeSchema.parse(nome.trim());
     const cat = await prisma.categoria.update({
       where: { id },
@@ -295,7 +297,7 @@ export async function renomearCategoria(
 
 export async function excluirCategoria(id: string): Promise<ActionResult> {
   return runAction("excluirCategoria", async () => {
-    await requireActiveUser();
+    await requireAdmin();
     const count = await prisma.produto.count({ where: { categoriaId: id, ativo: true } });
     if (count > 0) {
       throw new Error(

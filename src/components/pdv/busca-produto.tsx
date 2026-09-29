@@ -5,12 +5,14 @@ import { useCarrinho } from "@/stores/carrinho-store";
 import { Search } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { DialogFracionado, ProdutoFracionadoInfo } from "./dialog-fracionado";
+import { toast } from "sonner";
 
 type Unidade = "UN" | "KG" | "L" | "SACO" | "CX" | "M";
 
 interface ProdutoBusca {
   id: string;
   codigo: string;
+  gtin: string | null;
   nome: string;
   unidade: Unidade;
   precoVenda: string;
@@ -48,6 +50,8 @@ export function BuscaProduto({ inputRef }: BuscaProdutoProps) {
   const debouncedQuery = useDebounce(query, 150);
   const containerRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Query que gerou `resultados` — evita Enter adicionar item de busca antiga.
+  const resultadosDe = useRef("");
 
   const adicionarAoCarrinho = useCallback(
     (
@@ -116,16 +120,13 @@ export function BuscaProduto({ inputRef }: BuscaProdutoProps) {
     abortRef.current = new AbortController();
     const signal = abortRef.current.signal;
 
-    fetch(`/api/produtos/buscar?q=${encodeURIComponent(debouncedQuery)}`, { signal })
-      .then((r) => r.json())
-      .then((data: ProdutoBusca[]) => {
-        // Leitora de código de barras: digita EAN + Enter antes do debounce.
-        // Se volta 1 resultado e a query parece um código de barras (só dígitos,
-        // 8–14 chars), adiciona direto sem precisar de Enter.
-        const pareceCodigoBarras = /^\d{8,14}$/.test(debouncedQuery);
-        if (data.length === 1 && pareceCodigoBarras) {
+    buscar(debouncedQuery, signal)
+      .then((data) => {
+        // Leitor que não manda Enter: EAN completo com match exato entra direto.
+        if (/^\d{8,14}$/.test(debouncedQuery) && data[0] && ehExato(data[0], debouncedQuery)) {
           adicionarAoCarrinho(data[0], "inteiro");
         } else {
+          resultadosDe.current = debouncedQuery;
           setResultados(data);
           setAberto(data.length > 0);
           setSelecionado(0);
@@ -133,11 +134,43 @@ export function BuscaProduto({ inputRef }: BuscaProdutoProps) {
       })
       .catch((err: unknown) => {
         // AbortError é esperado quando o usuário continua digitando
-        if (err instanceof Error && err.name !== "AbortError") throw err;
+        if (!(err instanceof Error && err.name === "AbortError")) {
+          toast.error("Não foi possível buscar produtos. Verifique a conexão.");
+        }
       });
   }, [debouncedQuery, adicionarAoCarrinho]);
 
+  /** Enter com texto cuja busca ainda não voltou (leitor de código de barras). */
+  function buscarEAdicionar(codigo: string) {
+    abortRef.current?.abort();
+    setQuery(""); // limpa já: próxima leitura não concatena com esta
+    setAberto(false);
+    buscar(codigo)
+      .then((data) => {
+        if (data[0] && ehExato(data[0], codigo)) adicionarAoCarrinho(data[0], "inteiro");
+        else if (data.length === 1) adicionarAoCarrinho(data[0], "inteiro");
+        else if (data.length > 1) {
+          setQuery(codigo);
+          resultadosDe.current = codigo;
+          setResultados(data);
+          setAberto(true);
+          setSelecionado(0);
+        } else toast.error(`Produto "${codigo}" não encontrado.`);
+      })
+      .catch(() => toast.error("Não foi possível buscar produtos. Verifique a conexão."));
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const q = query.trim();
+      if (aberto && resultadosDe.current === q && resultados[selecionado]) {
+        adicionarAoCarrinho(resultados[selecionado], "inteiro");
+      } else if (q) {
+        buscarEAdicionar(q);
+      }
+      return;
+    }
     if (!aberto) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -145,9 +178,6 @@ export function BuscaProduto({ inputRef }: BuscaProdutoProps) {
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setSelecionado((s) => Math.max(s - 1, 0));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (resultados[selecionado]) adicionarAoCarrinho(resultados[selecionado], "inteiro");
     } else if (e.key === "Escape") {
       setAberto(false);
     }
@@ -165,13 +195,17 @@ export function BuscaProduto({ inputRef }: BuscaProdutoProps) {
           onFocus={() => resultados.length > 0 && setAberto(true)}
           onBlur={() => setTimeout(() => setAberto(false), 150)}
           placeholder="Buscar produto por nome ou código... (F2)"
+          aria-label="Buscar produto por nome, código ou código de barras"
+          role="combobox"
+          aria-expanded={aberto}
+          aria-controls="busca-produto-lista"
           className="w-full rounded-xl border border-border bg-white py-3 pl-10 pr-4 text-sm transition-all focus:border-verde-mata focus:outline-none focus:ring-2 focus:ring-verde-mata/30"
           autoComplete="off"
         />
       </div>
 
       {aberto && resultados.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border bg-white shadow-xl">
+        <div id="busca-produto-lista" role="listbox" className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border bg-white shadow-xl">
           {resultados.map((p, i) => {
             const isFrac = p.podeFracionar && p.unidadeFracao && p.pesoUnidade;
             const precoInteiro = Number(p.precoVenda);
@@ -249,7 +283,10 @@ export function BuscaProduto({ inputRef }: BuscaProdutoProps) {
       <DialogFracionado
         aberto={dialogFrac !== null}
         produto={dialogFrac?.info ?? null}
-        onFechar={() => setDialogFrac(null)}
+        onFechar={() => {
+          setDialogFrac(null);
+          inputRef.current?.focus();
+        }}
         onConfirmar={(quantidade, valorDigitado) => {
           if (dialogFrac) {
             adicionarAoCarrinho(dialogFrac.produto, "fracionado", { quantidade, valorDigitado });
@@ -260,3 +297,15 @@ export function BuscaProduto({ inputRef }: BuscaProdutoProps) {
     </div>
   );
 }
+
+async function buscar(q: string, signal?: AbortSignal): Promise<ProdutoBusca[]> {
+  const r = await fetch(`/api/produtos/buscar?q=${encodeURIComponent(q)}`, { signal });
+  if (r.status === 401) {
+    window.location.href = "/login";
+    return [];
+  }
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+const ehExato = (p: ProdutoBusca, q: string) => p.codigo === q || p.gtin === q;

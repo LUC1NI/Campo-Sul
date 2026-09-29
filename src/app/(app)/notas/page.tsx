@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+import { requireActiveUser, type SessionUser } from "@/lib/auth-helpers";
 
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
@@ -15,8 +16,10 @@ type PageParams = { q?: string; tipo?: string; pagina?: string; tab?: string };
 
 // ── Notas Emitidas ──────────────────────────────────────────────────────────
 
-async function getNotas({ q, tipo, pagina }: { q: string; tipo: string; pagina: number }) {
+async function getNotas({ q, tipo, pagina, user }: { q: string; tipo: string; pagina: number; user: SessionUser }) {
   const where = {
+    // Funcionário só vê documentos das próprias vendas (dados de cliente).
+    ...(user.role === "ADMIN" ? {} : { venda: { usuarioId: user.id } }),
     ...(tipo === "NOTA" || tipo === "RECIBO" ? { tipo: tipo as TipoDocumento } : {}),
     ...(q
       ? {
@@ -86,12 +89,12 @@ function TabelaSkeleton() {
   );
 }
 
-async function NotasTabela({ params }: { params: PageParams }) {
+async function NotasTabela({ params, user }: { params: PageParams; user: SessionUser }) {
   const q = (params.q ?? "").trim().slice(0, 80);
   const tipo = params.tipo ?? "";
   const pagina = Math.max(1, Number(params.pagina) || 1);
 
-  const { notas, total, paginas } = await getNotas({ q, tipo, pagina });
+  const { notas, total, paginas } = await getNotas({ q, tipo, pagina, user });
   const comErro = notas.filter((n) => n.statusDoc === "ERRO_PDF").length;
 
   function buildHref(p: number) {
@@ -172,7 +175,7 @@ async function NotasTabela({ params }: { params: PageParams }) {
                         statusDoc={nota.statusDoc}
                         erroInfo={nota.erroInfo}
                       />
-                      {nota.tipo === "RECIBO" && (
+                      {nota.tipo === "RECIBO" && user.role === "ADMIN" && (
                         <BotaoEmitirNF documentoId={nota.id} numeroRecibo={nota.numero} />
                       )}
                     </div>
@@ -376,8 +379,11 @@ export default async function NotasPage({
 }: {
   searchParams: Promise<PageParams>;
 }) {
+  const user = await requireActiveUser();
+  const admin = user.role === "ADMIN";
   const params = await searchParams;
-  const tab = params.tab === "recebidas" ? "recebidas" : "emitidas";
+  // NF-e recebidas mostram preço de custo: só admin.
+  const tab = params.tab === "recebidas" && admin ? "recebidas" : "emitidas";
   const q = (params.q ?? "").trim().slice(0, 80);
   const tipo = params.tipo ?? "";
 
@@ -418,7 +424,7 @@ export default async function NotasPage({
             <FileText className="w-4 h-4" />
             Emitidas
           </Link>
-          <Link
+          {admin && <Link
             href="/notas?tab=recebidas"
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
               tab === "recebidas"
@@ -428,7 +434,7 @@ export default async function NotasPage({
           >
             <Truck className="w-4 h-4" />
             NF-e Recebidas
-          </Link>
+          </Link>}
         </div>
 
         {tab === "emitidas" && (
@@ -460,7 +466,7 @@ export default async function NotasPage({
             </form>
 
             <Suspense key={`emitidas-${JSON.stringify(params)}`} fallback={<TabelaSkeleton />}>
-              <NotasTabela params={params} />
+              <NotasTabela params={params} user={user} />
             </Suspense>
           </>
         )}

@@ -1,6 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { prisma, transacaoSerializavel } from "@/lib/prisma";
+import { Decimal } from "decimal.js";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Unidade } from "@prisma/client";
@@ -152,127 +153,100 @@ export async function confirmarImportacaoTxt(
       throw new Error("Selecione ao menos 1 item para importar.");
     }
 
-    const gtins = itensImportar.map((i) => i.gtin);
+    // Mesmo GTIN em várias linhas do arquivo: soma as quantidades (antes a
+    // última linha sobrescrevia as outras, ou o create duplicado quebrava).
+    const porGtin = new Map<string, (typeof itensImportar)[number]>();
+    for (const item of itensImportar) {
+      const ac = porGtin.get(item.gtin);
+      porGtin.set(item.gtin, ac ? { ...item, quantidade: ac.quantidade + item.quantidade } : item);
+    }
+    const itens = Array.from(porGtin.values());
+    const gtins = itens.map((i) => i.gtin);
 
-    // Busca todos os produtos existentes de uma vez
-    const existentes = await prisma.produto.findMany({
-      where: { gtin: { in: gtins }, ativo: true },
-      select: { id: true, gtin: true, quantidade: true },
-    });
-    const existentePorGtin = new Map(existentes.map((e) => [e.gtin!, e]));
+    const { criados, atualizados } = await transacaoSerializavel(async (tx) => {
+      // Leitura DENTRO da transação: uma venda feita durante a importação
+      // não é sobrescrita (antes o saldo era lido fora e gravado dentro).
+      const existentes = await tx.produto.findMany({
+        where: { gtin: { in: gtins }, deletedAt: null },
+        select: { id: true, gtin: true, quantidade: true },
+      });
+      const existentePorGtin = new Map(existentes.map((e) => [e.gtin!, e]));
 
-    const { criados, atualizados } = await prisma.$transaction(
-      async (tx) => {
-        let criadosCount = 0;
-        let atualizadosCount = 0;
+      const updates = itens.flatMap((item) => {
+        const ex = existentePorGtin.get(item.gtin);
+        if (!ex) return [];
+        const novaQtd = new Decimal(String(ex.quantidade)).plus(item.quantidade);
+        return [{ produtoId: ex.id, quantidade: item.quantidade, preco: item.preco, novaQtd }];
+      });
+      const novosParaCriar = itens.filter((item) => !existentePorGtin.has(item.gtin));
 
-        // --- 1. Itens existentes: agregar updates por produto ---
-        const updates: Array<{
-          produtoId: string;
-          gtin: string;
-          quantidade: number;
-          preco: number;
-          novaQtd: number;
-        }> = [];
-
-        // --- 2. Itens novos: criar (precisamos do ID) ---
-        const novosParaCriar: typeof itensImportar = [];
-
-        for (const item of itensImportar) {
-          const ex = existentePorGtin.get(item.gtin);
-          if (ex) {
-            const novaQtd = Number(ex.quantidade) + item.quantidade;
-            updates.push({
-              produtoId: ex.id,
-              gtin: item.gtin,
-              quantidade: item.quantidade,
-              preco: item.preco,
-              novaQtd,
-            });
-            atualizadosCount++;
-          } else {
-            novosParaCriar.push(item);
-            criadosCount++;
-          }
-        }
-
-        // Aplica updates em paralelo
-        await Promise.all(
-          updates.map((u) =>
-            tx.produto.update({
-              where: { id: u.produtoId },
-              data: {
-                quantidade: u.novaQtd.toFixed(4),
-                precoCusto: u.preco.toFixed(4),
-              },
-            })
-          )
-        );
-
-        // Cria os novos em paralelo (precisa do ID retornado)
-        const novosCriadosPorGtin = new Map<
-          string,
-          { id: string; quantidade: number; preco: number }
-        >();
-        await Promise.all(
-          novosParaCriar.map(async (item) => {
-            const codigo = `SIEG-${item.gtin}`;
-            const codigoExistente = await tx.produto.findFirst({
-              where: { codigo },
-              select: { id: true },
-            });
-            const codigoFinal = codigoExistente ? `SIEG-${item.gtin}-${Date.now()}` : codigo;
-
-            const novo = await tx.produto.create({
-              data: {
-                codigo: codigoFinal,
-                gtin: item.gtin,
-                nome: item.gtin,
-                unidade: Unidade.UN,
-                precoCusto: item.preco.toFixed(4),
-                precoVenda: item.precoVenda.toFixed(4),
-                quantidade: item.quantidade.toFixed(4),
-              },
-              select: { id: true },
-            });
-            novosCriadosPorGtin.set(item.gtin, {
-              id: novo.id,
-              quantidade: item.quantidade,
-              preco: item.preco,
-            });
+      await Promise.all(
+        updates.map((u) =>
+          tx.produto.update({
+            where: { id: u.produtoId },
+            // Produto desativado volta a ficar ativo ao receber estoque.
+            data: { quantidade: u.novaQtd.toFixed(4), precoCusto: u.preco.toFixed(4), ativo: true },
           })
-        );
+        )
+      );
 
-        // --- 3. Movimentos em createMany (UMA query) ---
-        const movimentos = [
-          ...updates.map((u) => ({
-            produtoId: u.produtoId,
-            tipo: "ENTRADA_MANUAL" as const,
-            quantidade: u.quantidade.toFixed(4),
-            saldoApos: u.novaQtd.toFixed(4),
-            precoCusto: u.preco.toFixed(4),
-            observacao: "Importação SIEG TXT",
-            usuarioId: user.id,
-          })),
-          ...Array.from(novosCriadosPorGtin.entries()).map(([, v]) => ({
-            produtoId: v.id,
-            tipo: "ENTRADA_MANUAL" as const,
-            quantidade: v.quantidade.toFixed(4),
-            saldoApos: v.quantidade.toFixed(4),
-            precoCusto: v.preco.toFixed(4),
-            observacao: "Importação SIEG TXT",
-            usuarioId: user.id,
-          })),
-        ];
+      // Códigos já usados, em UMA query (antes era 1 findFirst por item).
+      const codigosUsados = new Set(
+        (
+          await tx.produto.findMany({
+            where: { codigo: { in: novosParaCriar.map((i) => `SIEG-${i.gtin}`) } },
+            select: { codigo: true },
+          })
+        ).map((p) => p.codigo)
+      );
 
-        if (movimentos.length > 0) {
-          await tx.movimentoEstoque.createMany({ data: movimentos });
-        }
+      const criadosLista = await Promise.all(
+        novosParaCriar.map(async (item) => {
+          const codigo = codigosUsados.has(`SIEG-${item.gtin}`)
+            ? `SIEG-${item.gtin}-${Date.now()}`
+            : `SIEG-${item.gtin}`;
+          const novo = await tx.produto.create({
+            data: {
+              codigo,
+              gtin: item.gtin,
+              nome: item.gtin,
+              unidade: Unidade.UN,
+              precoCusto: item.preco.toFixed(4),
+              precoVenda: item.precoVenda.toFixed(4),
+              quantidade: item.quantidade.toFixed(4),
+            },
+            select: { id: true },
+          });
+          return { id: novo.id, quantidade: item.quantidade, preco: item.preco };
+        })
+      );
 
-        return { criados: criadosCount, atualizados: atualizadosCount };
-      },
-      { isolationLevel: "Serializable", timeout: 30000, maxWait: 10000 }
-    );
+      const movimentos = [
+        ...updates.map((u) => ({
+          produtoId: u.produtoId,
+          quantidade: u.quantidade.toFixed(4),
+          saldoApos: u.novaQtd.toFixed(4),
+          precoCusto: u.preco.toFixed(4),
+        })),
+        ...criadosLista.map((v) => ({
+          produtoId: v.id,
+          quantidade: v.quantidade.toFixed(4),
+          saldoApos: v.quantidade.toFixed(4),
+          precoCusto: v.preco.toFixed(4),
+        })),
+      ].map((m) => ({
+        ...m,
+        tipo: "ENTRADA_MANUAL" as const,
+        observacao: "Importação SIEG TXT",
+        usuarioId: user.id,
+      }));
+
+      if (movimentos.length > 0) {
+        await tx.movimentoEstoque.createMany({ data: movimentos });
+      }
+
+      return { criados: criadosLista.length, atualizados: updates.length };
+    });
 
     revalidatePath("/estoque");
     return { criados, atualizados };

@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
@@ -14,9 +15,14 @@ export async function GET(
   if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
 
   const { id } = await params;
+  if (!z.string().cuid().safeParse(id).success) return new NextResponse("Not found", { status: 404 });
 
-  const doc = await prisma.documento.findUnique({
-    where: { id },
+  // Funcionário só abre documento das próprias vendas (dados de cliente: CPF/nome).
+  const doc = await prisma.documento.findFirst({
+    where: {
+      id,
+      ...(session.user.role === "ADMIN" ? {} : { venda: { usuarioId: session.user.id } }),
+    },
     include: {
       venda: {
         include: {
@@ -69,8 +75,8 @@ export async function GET(
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="nota-${doc.numero}.pdf"`,
-        // Documentos são imutáveis após emitidos: cache privado curto evita re-render quando o usuário recarrega
-        "Cache-Control": "private, max-age=3600, must-revalidate",
+        // Sem cache: "emitir nota" converte recibo em nota no mesmo id.
+        "Cache-Control": "private, no-store",
       },
     });
   } catch (err) {

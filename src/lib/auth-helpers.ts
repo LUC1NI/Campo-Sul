@@ -1,5 +1,4 @@
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 
 export type SessionUser = {
@@ -18,32 +17,12 @@ export function erroAction(erro: string): ActionError {
 }
 
 /**
- * Garante sessão válida e usuário ainda ativo no banco.
- * Faz uma query rápida (apenas id) — cobre o caso de usuário
- * desativado durante a janela de 30 dias da sessão JWT.
- *
- * Se a sessão for inválida, redireciona pro /login. Use em qualquer
- * action que muta dados.
+ * Garante sessão válida. `auth()` já revalida no banco a cada request
+ * (ver callback `jwt` em lib/auth.ts): usuário desativado ou editado depois
+ * do login não passa, e `role` vem sempre do banco.
+ * Sessão inválida → redireciona pro /login.
  */
 export async function requireActiveUser(): Promise<SessionUser> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-
-  const ativo = await prisma.usuario.findUnique({
-    where: { id: session.user.id, ativo: true },
-    select: { id: true },
-  });
-  if (!ativo) redirect("/login");
-
-  return session.user as SessionUser;
-}
-
-/**
- * Versão "leve" — só checa sessão, sem ir ao banco.
- * Use em rotas de leitura de baixo risco (busca, listagem)
- * onde uma sessão expirada vira erro 401 natural.
- */
-export async function requireSession(): Promise<SessionUser> {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   return session.user as SessionUser;
@@ -58,6 +37,17 @@ export async function requireAdmin(): Promise<SessionUser> {
   if (user.role !== "ADMIN") {
     throw new ActionPermissionError("Apenas administradores podem executar essa ação.");
   }
+  return user;
+}
+
+/**
+ * Guarda para page.tsx de admin: funcionário é mandado pro dashboard.
+ * Toda página do (app) chama um guarda próprio — o layout não é suficiente,
+ * pois em navegação client-side o Next pode renderizar só a página.
+ */
+export async function requireAdminPage(): Promise<SessionUser> {
+  const user = await requireActiveUser();
+  if (user.role !== "ADMIN") redirect("/dashboard");
   return user;
 }
 

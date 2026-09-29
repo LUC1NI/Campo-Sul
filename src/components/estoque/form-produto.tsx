@@ -1,5 +1,6 @@
 "use client";
 
+import { parseDecimalBR } from "@/lib/venda-calculo";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,8 +23,7 @@ const REGEX_GTIN = /^\d{8,14}$/;
 
 const numeroValido = (v: string | null | undefined) => {
   if (v == null || v === "") return false;
-  const n = Number(String(v).replace(",", "."));
-  return !isNaN(n);
+  return !isNaN(parseDecimalBR(String(v)));
 };
 
 const schema = z.object({
@@ -37,14 +37,14 @@ const schema = z.object({
   descricao: z.string().max(1000, "Descrição muito longa").optional().nullable(),
   categoriaId: z.string().optional().nullable(),
   unidade: z.nativeEnum(Unidade),
-  precoCusto: z.string().refine((v) => numeroValido(v) && Number(v.replace(",", ".")) >= 0, "Use somente números (ex.: 12.50 ou 12,50)"),
-  precoVenda: z.string().refine((v) => numeroValido(v) && Number(v.replace(",", ".")) > 0, "Preço de venda precisa ser maior que zero"),
+  precoCusto: z.string().refine((v) => numeroValido(v) && parseDecimalBR(v) >= 0, "Use somente números (ex.: 12.50 ou 12,50)"),
+  precoVenda: z.string().refine((v) => numeroValido(v) && parseDecimalBR(v) > 0, "Preço de venda precisa ser maior que zero"),
   podeFracionar: z.boolean(),
   pesoUnidade: z.string().optional().nullable(),
   precoFracao: z.string().optional().nullable(),
   unidadeFracao: z.nativeEnum(Unidade).optional().nullable(),
-  quantidade: z.string().refine((v) => !v || (numeroValido(v) && Number(v.replace(",", ".")) >= 0), "Use somente números"),
-  quantidadeMinima: z.string().refine((v) => !v || (numeroValido(v) && Number(v.replace(",", ".")) >= 0), "Use somente números"),
+  quantidade: z.string().refine((v) => !v || (numeroValido(v) && parseDecimalBR(v) >= 0), "Use somente números"),
+  quantidadeMinima: z.string().refine((v) => !v || (numeroValido(v) && parseDecimalBR(v) >= 0), "Use somente números"),
 }).superRefine((data, ctx) => {
   if (data.podeFracionar) {
     if (!data.pesoUnidade) {
@@ -95,8 +95,8 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
   useEffect(() => {
     if (!podeFracionar) { fracaoEditadaManualmente.current = false; return; }
     if (fracaoEditadaManualmente.current) return;
-    const pv = Number(String(precoVenda ?? "").replace(",", "."));
-    const pu = Number(String(pesoUnidade ?? "").replace(",", "."));
+    const pv = parseDecimalBR(String(precoVenda ?? ""));
+    const pu = parseDecimalBR(String(pesoUnidade ?? ""));
     if (pv > 0 && pu > 0) {
       setValue("precoFracao", (pv / pu).toFixed(2).replace(".", ","), { shouldValidate: false });
     }
@@ -116,8 +116,8 @@ export function FormProduto({ defaultValues, categorias, onSubmit, isEdit, extra
 
   const fracaoPreview = (() => {
     if (!podeFracionar || !unidadeFracao || !pesoUnidade) return null;
-    const pesoNum = Number(pesoUnidade.replace(",", "."));
-    const precoNum = Number(precoVenda?.replace(",", "."));
+    const pesoNum = parseDecimalBR(pesoUnidade);
+    const precoNum = parseDecimalBR(precoVenda ?? "");
     if (!pesoNum) return `Cada ${ue} tem ${pesoUnidade} ${uf} → vendido por ${uf}`;
     const precoFracStr = precoNum > 0
       ? ` · preço por ${uf}: R$ ${(precoNum / pesoNum).toFixed(2).replace(".", ",")}`

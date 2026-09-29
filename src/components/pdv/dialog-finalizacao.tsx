@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TipoDocumento } from "@prisma/client";
+type TipoDocumento = "NOTA" | "RECIBO";
 import { X, FileText, Receipt, Ban, Loader2, Check } from "lucide-react";
 
 interface DialogFinalizacaoProps {
@@ -44,8 +44,8 @@ export function DialogFinalizacao({ aberto, onFechar, onConfirmar, finalizando }
     {
       valor: "NOTA",
       icon: <FileText className="w-5 h-5 shrink-0" />,
-      titulo: "Nota Fiscal",
-      descricao: "Emite nota fiscal — CPF/CNPJ opcional",
+      titulo: "Nota (sem valor fiscal)",
+      descricao: "DANFE simplificado com dados do cliente — CPF/CNPJ opcional",
     },
   ];
 
@@ -53,21 +53,30 @@ export function DialogFinalizacao({ aberto, onFechar, onConfirmar, finalizando }
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onFechar} />
 
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="titulo-finalizar"
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10"
+      >
         <button
           onClick={onFechar}
-          className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+          disabled={finalizando}
+          aria-label="Fechar"
+          className="absolute top-3 right-3 p-2 rounded-lg text-muted-foreground hover:text-foreground"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <h2 className="font-fraunces text-xl font-bold text-verde-mata mb-1">Finalizar venda</h2>
+        <h2 id="titulo-finalizar" className="font-fraunces text-xl font-bold text-verde-mata mb-1">Finalizar venda</h2>
         <p className="text-sm text-muted-foreground mb-5">Selecione o tipo de documento</p>
 
         <div className="flex flex-col gap-2 mb-5">
           {opcoes.map((op) => (
             <button
               key={op.valor}
+              type="button"
+              aria-pressed={tipo === op.valor}
               onClick={() => setTipo(op.valor)}
               className={`flex items-center gap-4 px-4 py-3.5 rounded-xl border-2 text-left transition-all ${
                 tipo === op.valor
@@ -92,10 +101,13 @@ export function DialogFinalizacao({ aberto, onFechar, onConfirmar, finalizando }
         {tipo === "NOTA" && (
           <div className="space-y-3 mb-5">
             <div>
-              <label className="block text-xs font-medium text-foreground/70 mb-1.5">
+              <label htmlFor="fin-cpf" className="block text-xs font-medium text-foreground/70 mb-1.5">
                 CPF / CNPJ (opcional)
               </label>
               <input
+                id="fin-cpf"
+                inputMode="numeric"
+                maxLength={18}
                 value={cpf}
                 onChange={(e) => setCpf(e.target.value)}
                 placeholder="000.000.000-00"
@@ -103,10 +115,12 @@ export function DialogFinalizacao({ aberto, onFechar, onConfirmar, finalizando }
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-foreground/70 mb-1.5">
+              <label htmlFor="fin-nome" className="block text-xs font-medium text-foreground/70 mb-1.5">
                 Nome do cliente (opcional)
               </label>
               <input
+                id="fin-nome"
+                maxLength={200}
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 placeholder="Consumidor não identificado"
@@ -116,7 +130,9 @@ export function DialogFinalizacao({ aberto, onFechar, onConfirmar, finalizando }
           </div>
         )}
 
+        {/* autoFocus: F4 → Enter conclui a venda sem mouse */}
         <button
+          autoFocus
           onClick={handleConfirmar}
           disabled={finalizando}
           className="w-full flex items-center justify-center gap-2 bg-verde-mata hover:bg-verde-claro disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors"

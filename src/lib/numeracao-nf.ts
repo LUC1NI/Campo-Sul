@@ -13,15 +13,11 @@ export async function proximoNumero(
   tx: TxClient,
   chave: "VENDA" | "NOTA:1" | "RECIBO:1"
 ): Promise<number> {
+  // Counter inexistente → P2025 ("Registro não encontrado"): rode o seed.
   const resultado = await tx.counter.update({
     where: { chave },
     data: { valor: { increment: 1 } },
     select: { valor: true },
   });
-
-  if (!resultado) {
-    throw new Error(`Counter "${chave}" não encontrado. Execute o seed.`);
-  }
-
   return resultado.valor;
 }

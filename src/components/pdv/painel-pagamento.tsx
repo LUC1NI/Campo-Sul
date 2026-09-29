@@ -1,6 +1,7 @@
 "use client";
 
 import { useCarrinho, MetodoPagamento } from "@/stores/carrinho-store";
+import { parseDecimalBR } from "@/lib/venda-calculo";
 import { Plus, X, Tag, Banknote, CreditCard, Smartphone } from "lucide-react";
 import { useState, useRef, useImperativeHandle, forwardRef } from "react";
 import { nanoid } from "./utils";
@@ -43,7 +44,7 @@ export const PainelPagamento = forwardRef<PainelPagamentoHandle>(function Painel
   const isDinheiro = metodoSelecionado === "DINHEIRO";
 
   function handleAdicionarDinheiro() {
-    const valor = parseFloat(valorInput.replace(",", "."));
+    const valor = parseDecimalBR(valorInput);
     if (isNaN(valor) || valor <= 0) return;
     adicionarPagamento({ id: nanoid(), metodo: metodoSelecionado, valor });
     setValorInput("");
@@ -55,7 +56,7 @@ export const PainelPagamento = forwardRef<PainelPagamentoHandle>(function Painel
   }
 
   function aplicarDesconto() {
-    const val = parseFloat(descontoInput.replace(",", "."));
+    const val = parseDecimalBR(descontoInput);
     setDesconto(isNaN(val) || val < 0 ? 0 : val);
     setEditandoDesconto(false);
   }

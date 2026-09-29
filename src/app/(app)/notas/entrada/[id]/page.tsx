@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+import { requireAdminPage } from "@/lib/auth-helpers";
 
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -39,6 +40,7 @@ export default async function EntradaXmlDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAdminPage();
   const { id } = await params;
   const entrada = await getEntrada(id);
 

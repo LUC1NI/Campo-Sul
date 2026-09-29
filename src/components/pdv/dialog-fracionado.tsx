@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { parseDecimalBR } from "@/lib/venda-calculo";
 import { X, Scale, Banknote, Package } from "lucide-react";
 import { calcularQuantidadePorValor } from "@/lib/fracionamento";
 
@@ -53,7 +54,7 @@ export function DialogFracionado({ aberto, produto, onFechar, onConfirmar }: Pro
   if (!aberto || !produto) return null;
 
   const parse = (s: string) => {
-    const n = parseFloat(s.replace(",", "."));
+    const n = parseDecimalBR(s);
     return isNaN(n) || n <= 0 ? 0 : n;
   };
 

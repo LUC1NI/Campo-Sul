@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Unidade } from "@prisma/client";
+import { Decimal } from "decimal.js";
+import { totalItem } from "@/lib/venda-calculo";
+
+type Unidade = "UN" | "KG" | "L" | "SACO" | "CX" | "M";
+const sub = (q: number, p: number) => totalItem(q, p).toNumber();
+const novaChave = () => crypto.randomUUID();
 
 export interface ItemCarrinho {
   id: string; // único por linha do carrinho — mesmo produto pode ter 2 linhas (inteiro + fracionado)
@@ -29,13 +34,14 @@ interface CarrinhoState {
   itens: ItemCarrinho[];
   desconto: number; // em reais
   pagamentos: PagamentoCarrinho[];
+  /** Identifica esta venda no servidor (anti-duplicidade). Renova ao limpar. */
+  chaveVenda: string;
 
   // Actions
   adicionarItem: (item: Omit<ItemCarrinho, "id" | "subtotal">) => void;
   removerItem: (id: string) => void;
   atualizarQuantidade: (id: string, quantidade: number) => void;
   atualizarQuantidadePorValor: (id: string, quantidade: number, valorReais: number) => void;
-  atualizarPreco: (id: string, preco: number) => void;
   setDesconto: (valor: number) => void;
   adicionarPagamento: (pagamento: PagamentoCarrinho) => void;
   removerPagamento: (id: string) => void;
@@ -54,6 +60,7 @@ export const useCarrinho = create<CarrinhoState>()(
       itens: [],
       desconto: 0,
       pagamentos: [],
+      chaveVenda: novaChave(),
 
       adicionarItem: (item) => {
         const id = `${item.produtoId}-${item.unidade}-${Date.now()}`;
@@ -66,12 +73,12 @@ export const useCarrinho = create<CarrinhoState>()(
             return {
               itens: state.itens.map((i) =>
                 i.id === existente.id
-                  ? { ...i, quantidade: i.quantidade + item.quantidade, subtotal: (i.quantidade + item.quantidade) * i.precoUnitario }
+                  ? { ...i, quantidade: i.quantidade + item.quantidade, subtotal: sub(i.quantidade + item.quantidade, i.precoUnitario) }
                   : i
               ),
             };
           }
-          return { itens: [...state.itens, { ...item, id, subtotal: item.quantidade * item.precoUnitario }] };
+          return { itens: [...state.itens, { ...item, id, subtotal: sub(item.quantidade, item.precoUnitario) }] };
         });
       },
 
@@ -86,7 +93,7 @@ export const useCarrinho = create<CarrinhoState>()(
         }
         set((state) => ({
           itens: state.itens.map((i) =>
-            i.id === id ? { ...i, quantidade, subtotal: quantidade * i.precoUnitario, valorDigitado: undefined } : i
+            i.id === id ? { ...i, quantidade, subtotal: sub(quantidade, i.precoUnitario), valorDigitado: undefined } : i
           ),
         }));
       },
@@ -98,15 +105,7 @@ export const useCarrinho = create<CarrinhoState>()(
         }
         set((state) => ({
           itens: state.itens.map((i) =>
-            i.id === id ? { ...i, quantidade, subtotal: quantidade * i.precoUnitario, valorDigitado: valorReais } : i
-          ),
-        }));
-      },
-
-      atualizarPreco: (id, preco) => {
-        set((state) => ({
-          itens: state.itens.map((i) =>
-            i.id === id ? { ...i, precoUnitario: preco, subtotal: i.quantidade * preco } : i
+            i.id === id ? { ...i, quantidade, subtotal: sub(quantidade, i.precoUnitario), valorDigitado: valorReais } : i
           ),
         }));
       },
@@ -125,15 +124,20 @@ export const useCarrinho = create<CarrinhoState>()(
         set((state) => ({ pagamentos: state.pagamentos.filter((p) => p.id !== id) }));
       },
 
-      limparCarrinho: () => set({ itens: [], desconto: 0, pagamentos: [] }),
+      limparCarrinho: () => set({ itens: [], desconto: 0, pagamentos: [], chaveVenda: novaChave() }),
 
-      subtotal: () => get().itens.reduce((acc, i) => acc + i.subtotal, 0),
-      total: () => Math.max(0, get().subtotal() - get().desconto),
-      totalPago: () => get().pagamentos.reduce((acc, p) => acc + p.valor, 0),
-      troco: () => Math.max(0, get().totalPago() - get().total()),
+      // Somas em Decimal (mesma regra do servidor) para não acumular erro de float.
+      subtotal: () => soma(get().itens.map((i) => i.subtotal)),
+      total: () => Math.max(0, new Decimal(get().subtotal()).minus(get().desconto).toNumber()),
+      totalPago: () => soma(get().pagamentos.map((p) => p.valor)),
+      troco: () => Math.max(0, new Decimal(get().totalPago()).minus(get().total()).toNumber()),
     }),
     {
       name: "camposul-carrinho",
+      version: 2, // v1 não tinha chaveVenda e usava subtotal em float
+      migrate: () => ({ itens: [], desconto: 0, pagamentos: [], chaveVenda: novaChave() }) as never,
     }
   )
 );
+
+const soma = (vs: number[]) => vs.reduce((a, v) => a.plus(v), new Decimal(0)).toNumber();

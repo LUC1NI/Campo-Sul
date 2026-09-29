@@ -3,21 +3,30 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import {
-  checarLimiteLogin,
-  registrarTentativaLogin,
-} from "@/lib/rate-limit";
+import { checarLimiteLogin } from "@/lib/rate-limit";
 
 const loginSchema = z.object({
-  email: z.string().email().toLowerCase(),
-  password: z.string().min(6).max(72),
+  email: z.string().email().toLowerCase().max(200),
+  password: z.string().min(1).max(200),
 });
 
+// Hash de uma senha qualquer: comparar contra ele quando o e-mail não existe
+// faz a resposta levar o mesmo tempo (não revela quais e-mails são cadastrados).
+const HASH_FALSO = "$2a$12$1Gd2Kz5nJS60iQzVF2M4JuTgQ8hcCTa2GONcN2qSN4jUfRI2YG11K";
+
+/**
+ * IP real do cliente. Cabeçalhos definidos pela plataforma vêm primeiro
+ * (Cloudflare/Vercel sobrescrevem, cliente não consegue forjar).
+ * x-forwarded-for: usa o ÚLTIMO item (adicionado pelo proxy), não o primeiro.
+ */
 function getClientIp(request?: Request): string | null {
   if (!request) return null;
-  const fwd = request.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return request.headers.get("x-real-ip") ?? null;
+  const h = request.headers;
+  const plataforma =
+    h.get("cf-connecting-ip") ?? h.get("x-vercel-forwarded-for") ?? h.get("x-real-ip");
+  if (plataforma) return plataforma.trim();
+  const fwd = h.get("x-forwarded-for");
+  return fwd ? fwd.split(",").pop()!.trim() : null;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -31,7 +40,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const { email, password } = parsed.data;
         const ip = getClientIp(request as Request | undefined);
 
-        // 1. Rate limit (defesa contra brute force)
+        // 1. Rate limit (defesa contra brute force) — registra a tentativa antes
+        // de contar, para rajadas simultâneas não passarem todas pelo limite.
         const limite = await checarLimiteLogin(email, ip);
         if (!limite.permitido) {
           // Não distinguimos "bloqueado" de "credenciais inválidas"
@@ -49,18 +59,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        if (!usuario || !usuario.ativo) {
-          await registrarTentativaLogin(email, ip, false);
-          return null;
-        }
+        const senhaOk = await bcrypt.compare(password, usuario?.senhaHash ?? HASH_FALSO);
+        if (!usuario || !usuario.ativo || !senhaOk) return null;
 
-        const senhaOk = await bcrypt.compare(password, usuario.senhaHash);
-        if (!senhaOk) {
-          await registrarTentativaLogin(email, ip, false);
-          return null;
-        }
-
-        await registrarTentativaLogin(email, ip, true);
+        await limite.marcarSucesso();
 
         return {
           id: usuario.id,
@@ -72,11 +74,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    /**
+     * Roda em todo auth(). Revalida o usuário no banco a cada request:
+     * - desativado → sessão morre na hora (não espera os 30 dias do JWT);
+     * - role vem do banco (rebaixar um admin vale imediatamente);
+     * - admin editou o usuário (senha/role/ativo) depois do login → sessão
+     *   antiga é invalidada e ele precisa entrar de novo.
+     */
+    async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
+        token.id = user.id!;
         token.role = (user as { role: string }).role;
+        token.loginEm = Date.now();
+        return token;
       }
+      const id = token.id as string | undefined;
+      const loginEm = token.loginEm as number | undefined;
+      if (!id) return null;
+      const u = await prisma.usuario.findUnique({
+        where: { id },
+        select: { ativo: true, role: true, updatedAt: true },
+      });
+      if (!u || !u.ativo) return null;
+      if (!loginEm || u.updatedAt.getTime() > loginEm) return null;
+      token.role = u.role;
       return token;
     },
     session({ session, token }) {

@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+import { requireActiveUser } from "@/lib/auth-helpers";
 
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
@@ -185,7 +186,7 @@ function TabelaSkeleton() {
   );
 }
 
-async function TabelaAtivos({ params }: { params: PageParams }) {
+async function TabelaAtivos({ params, admin }: { params: PageParams; admin: boolean }) {
   const pagina = Math.max(1, Number(params.pagina) || 1);
   const { produtos, total, paginas } = await getProdutos({
     q: params.q,
@@ -267,12 +268,12 @@ async function TabelaAtivos({ params }: { params: PageParams }) {
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
+                      {admin && <div className="flex items-center justify-center gap-1">
                         <Link href={`/estoque/${p.id}`} title="Editar produto" aria-label={`Editar ${p.nome}`} className="p-1.5 rounded-lg text-muted-foreground hover:text-verde-mata hover:bg-verde-mata/10 transition-colors">
                           <Pencil className="w-4 h-4" aria-hidden />
                         </Link>
                         <BotaoDesativar id={p.id} nome={p.nome} />
-                      </div>
+                      </div>}
                     </td>
                   </tr>
                 );
@@ -286,7 +287,7 @@ async function TabelaAtivos({ params }: { params: PageParams }) {
   );
 }
 
-async function TabelaInativos({ params }: { params: PageParams }) {
+async function TabelaInativos({ params, admin }: { params: PageParams; admin: boolean }) {
   const pagina = Math.max(1, Number(params.pagina) || 1);
   const { inativos, total, paginas } = await getInativos(params.q, pagina);
 
@@ -331,7 +332,7 @@ async function TabelaInativos({ params }: { params: PageParams }) {
                       : "—"}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <BotaoReativar id={p.id} nome={p.nome} />
+                    {admin && <BotaoReativar id={p.id} nome={p.nome} />}
                   </td>
                 </tr>
               ))
@@ -388,6 +389,8 @@ export default async function EstoquePage({
 }: {
   searchParams: Promise<PageParams>;
 }) {
+  const user = await requireActiveUser();
+  const admin = user.role === "ADMIN";
   const params = await searchParams;
   const verInativos = params.status === "inativos";
 
@@ -400,7 +403,7 @@ export default async function EstoquePage({
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Estoque</h1>
-          <div className="flex flex-wrap gap-2">
+          {admin && <div className="flex flex-wrap gap-2">
             <Link href="/estoque/categorias" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm hover:bg-muted transition-colors">
               <Tag className="w-4 h-4" />Categorias
             </Link>
@@ -410,7 +413,7 @@ export default async function EstoquePage({
             <Link href="/estoque/novo" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-verde-mata text-white text-sm hover:bg-verde-claro transition-colors">
               <Plus className="w-4 h-4" />Novo produto
             </Link>
-          </div>
+          </div>}
         </div>
 
         <div className="flex items-center gap-1 border-b border-border">
@@ -458,9 +461,9 @@ export default async function EstoquePage({
 
         <Suspense key={JSON.stringify(params)} fallback={<TabelaSkeleton />}>
           {verInativos ? (
-            <TabelaInativos params={params} />
+            <TabelaInativos params={params} admin={admin} />
           ) : (
-            <TabelaAtivos params={params} />
+            <TabelaAtivos params={params} admin={admin} />
           )}
         </Suspense>
       </div>

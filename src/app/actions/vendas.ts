@@ -1,43 +1,50 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { prisma, transacaoSerializavel } from "@/lib/prisma";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
+import { Decimal } from "decimal.js";
 import { Unidade, MetodoPagamento, TipoDocumento, StatusVenda } from "@prisma/client";
-import { calcularFracionamento } from "@/lib/fracionamento";
+import { reverterFracionamento } from "@/lib/fracionamento";
 import { proximoNumero } from "@/lib/numeracao-nf";
+import { processarItensVenda } from "@/lib/itens-venda";
+import { calcularTotais, ehVendaInteira } from "@/lib/venda-calculo";
+import { inicioDoDiaSP } from "@/lib/format";
 import {
   requireActiveUser,
   requireAdmin,
   runAction,
   ActionResult,
   ActionPermissionError,
+  type SessionUser,
 } from "@/lib/auth-helpers";
 
 const itemSchema = z.object({
   produtoId: z.string().cuid(),
   unidadeVenda: z.nativeEnum(Unidade),
-  quantidade: z.number().positive(),
-  precoUnitario: z.number().positive(),
-  desconto: z.number().min(0).default(0),
+  quantidade: z.number().positive().max(100000),
+  // Ignorado: o preço vem do catálogo no servidor (cliente não define preço).
+  precoUnitario: z.number().optional(),
 });
 
 const pagamentoSchema = z.object({
   metodo: z.nativeEnum(MetodoPagamento),
-  valor: z.number().positive(),
+  valor: z.number().positive().max(10_000_000),
 });
 
 const vendaSchema = z.object({
   itens: z.array(itemSchema).min(1, "Adicione ao menos 1 item").max(200, "Limite de 200 itens"),
   pagamentos: z.array(pagamentoSchema).min(1, "Informe o pagamento").max(10),
-  desconto: z.number().min(0).default(0),
+  desconto: z.number().min(0).max(10_000_000).default(0),
   observacao: z.string().max(500).optional(),
   tipoDocumento: z.nativeEnum(TipoDocumento).optional(),
   cpfCnpj: z.string().max(20).optional(),
   nomeCliente: z.string().max(200).optional(),
+  // Gerada pelo carrinho: evita venda duplicada em duplo clique / resposta perdida.
+  chaveIdempotencia: z.string().uuid().optional(),
 });
 
-export type FinalizarVendaInput = z.infer<typeof vendaSchema>;
+export type FinalizarVendaInput = z.input<typeof vendaSchema>;
 export type FinalizarVendaResultado = {
   vendaId: string;
   numeroVenda: number;
@@ -51,155 +58,131 @@ export async function finalizarVenda(
     const user = await requireActiveUser();
     const data = vendaSchema.parse(input);
 
-    const subtotal = data.itens.reduce(
-      (acc, item) => acc + item.quantidade * item.precoUnitario - item.desconto,
-      0
-    );
-    const total = Math.max(0, subtotal - data.desconto);
-    const totalPago = data.pagamentos.reduce((acc, p) => acc + p.valor, 0);
-    const tolerancia = 0.02;
-
-    if (totalPago < total - tolerancia) {
-      throw new Error(
-        `Pagamento insuficiente. Total: R$${total.toFixed(2)}, Pago: R$${totalPago.toFixed(2)}`
-      );
+    if (data.chaveIdempotencia) {
+      const existente = await vendaPorChave(data.chaveIdempotencia);
+      if (existente) return existente;
     }
 
-    const resultado = await prisma.$transaction(
-      async (tx) => {
-        const numeroVenda = await proximoNumero(
-          tx as Parameters<typeof proximoNumero>[0],
-          "VENDA"
-        );
+    try {
+      return await criarVenda(user.id, data);
+    } catch (err) {
+      // Corrida com a mesma chave (duplo clique simultâneo): devolve a venda já criada.
+      if (data.chaveIdempotencia && (err as { code?: string })?.code === "P2002") {
+        const existente = await vendaPorChave(data.chaveIdempotencia);
+        if (existente) return existente;
+      }
+      throw err;
+    } finally {
+      revalidateTag("dashboard");
+    }
+  });
+}
 
-        const produtoIds = data.itens.map((i) => i.produtoId);
-        const produtos = await tx.produto.findMany({ where: { id: { in: produtoIds } } });
-        const produtoMap = new Map(produtos.map((p) => [p.id, p]));
+async function vendaPorChave(chave: string): Promise<FinalizarVendaResultado | null> {
+  const v = await prisma.venda.findUnique({
+    where: { chaveIdempotencia: chave },
+    select: { id: true, numero: true, documento: { select: { id: true } } },
+  });
+  return v ? { vendaId: v.id, numeroVenda: v.numero, documentoId: v.documento?.id ?? null } : null;
+}
 
-        const itensVenda = data.itens.map((item) => {
-          const produto = produtoMap.get(item.produtoId);
-          if (!produto) throw new Error(`Produto não encontrado`);
-
-          const { novaQuantidade, novoSaldoFracionado, unidadesFechadasConsumidas } =
-            calcularFracionamento(
-              {
-                podeFracionar: produto.podeFracionar,
-                pesoUnidade: produto.pesoUnidade ? String(produto.pesoUnidade) : null,
-                quantidade: String(produto.quantidade),
-                saldoFracionado: String(produto.saldoFracionado),
-              },
-              item.quantidade
-            );
-
-          const totalItem = item.quantidade * item.precoUnitario - item.desconto;
-
-          return {
-            item,
-            produto,
-            novaQuantidade,
-            novoSaldoFracionado,
-            unidadesFechadasConsumidas,
-            totalItem: Math.max(0, totalItem),
-          };
-        });
-
-        // Updates de produtos em paralelo (mesma transação)
-        await Promise.all(
-          itensVenda.map(({ item, novaQuantidade, novoSaldoFracionado }) =>
-            tx.produto.update({
-              where: { id: item.produtoId },
-              data: {
-                quantidade: novaQuantidade.toFixed(4),
-                saldoFracionado: novoSaldoFracionado.toFixed(4),
-              },
-            })
-          )
-        );
-
-        const venda = await tx.venda.create({
-          data: {
-            numero: numeroVenda,
-            subtotal: subtotal.toFixed(2),
-            desconto: data.desconto.toFixed(2),
-            total: total.toFixed(2),
-            observacao: data.observacao,
-            usuarioId: user.id,
-            itens: {
-              create: itensVenda.map(({ item, produto, unidadesFechadasConsumidas, totalItem }) => ({
-                produtoId: item.produtoId,
-                nomeProduto: produto.nome,
-                unidadeVenda: item.unidadeVenda,
-                quantidade: item.quantidade.toFixed(4),
-                precoUnitario: item.precoUnitario.toFixed(4),
-                desconto: item.desconto.toFixed(2),
-                total: totalItem.toFixed(2),
-                unidadesFechadasConsumidas: unidadesFechadasConsumidas.toFixed(4),
-              })),
-            },
-            pagamentos: {
-              create: data.pagamentos.map((p) => ({
-                metodo: p.metodo,
-                valor: p.valor.toFixed(2),
-              })),
-            },
-          },
-        });
-
-        await tx.movimentoEstoque.createMany({
-          data: itensVenda.map(({ item, novaQuantidade }) => ({
-            produtoId: item.produtoId,
-            tipo: "SAIDA_VENDA" as const,
-            quantidade: `-${item.quantidade}`,
-            saldoApos: novaQuantidade.toFixed(4),
-            usuarioId: user.id,
-            referenciaId: venda.id,
-          })),
-        });
-
-        let documentoId: string | null = null;
-        if (data.tipoDocumento) {
-          const chaveCounter = data.tipoDocumento === "NOTA" ? "NOTA:1" : "RECIBO:1";
-          const numeroDoc = await proximoNumero(
-            tx as Parameters<typeof proximoNumero>[0],
-            chaveCounter
-          );
-
-          const doc = await tx.documento.create({
-            data: {
-              tipo: data.tipoDocumento,
-              numero: numeroDoc,
-              vendaId: venda.id,
-              cpfCnpj: data.cpfCnpj || null,
-              nomeCliente: data.nomeCliente || null,
-              emitidoPorId: user.id,
-            },
-          });
-          documentoId = doc.id;
-        }
-
-        return { vendaId: venda.id, numeroVenda, documentoId };
-      },
-      { isolationLevel: "Serializable", timeout: 30000, maxWait: 10000 }
+function criarVenda(
+  usuarioId: string,
+  data: z.output<typeof vendaSchema>
+): Promise<FinalizarVendaResultado> {
+  return transacaoSerializavel(async (tx) => {
+    const linhas = await processarItensVenda(tx, data.itens, {
+      precoLivre: false,
+      descontarEstoque: true,
+    });
+    const totais = calcularTotais(
+      linhas.map((l) => l.total),
+      data.desconto,
+      data.pagamentos
     );
 
-    return resultado;
+    const numeroVenda = await proximoNumero(tx, "VENDA");
+    const venda = await tx.venda.create({
+      data: {
+        numero: numeroVenda,
+        chaveIdempotencia: data.chaveIdempotencia,
+        subtotal: totais.subtotal.toFixed(2),
+        desconto: totais.desconto.toFixed(2),
+        total: totais.total.toFixed(2),
+        observacao: data.observacao,
+        usuarioId,
+        itens: {
+          create: linhas.map((l) => ({
+            produtoId: l.produtoId,
+            nomeProduto: l.nomeProduto,
+            unidadeVenda: l.unidadeVenda,
+            quantidade: l.quantidade.toFixed(4),
+            precoUnitario: l.precoUnitario.toFixed(4),
+            desconto: "0.00",
+            total: l.total.toFixed(2),
+            unidadesFechadasConsumidas: l.unidadesFechadasConsumidas.toFixed(4),
+          })),
+        },
+        pagamentos: {
+          create: totais.pagamentos.map((p) => ({ metodo: p.metodo, valor: p.valor.toFixed(2) })),
+        },
+      },
+    });
+
+    await tx.movimentoEstoque.createMany({
+      data: linhas.map((l) => ({
+        produtoId: l.produtoId,
+        tipo: "SAIDA_VENDA" as const,
+        quantidade: l.quantidade.negated().toFixed(4),
+        saldoApos: l.saldoApos.toFixed(4),
+        usuarioId,
+        referenciaId: venda.id,
+        observacao: `Venda #${numeroVenda} (${l.unidadeVenda})`,
+      })),
+    });
+
+    let documentoId: string | null = null;
+    if (data.tipoDocumento) {
+      const numeroDoc = await proximoNumero(
+        tx,
+        data.tipoDocumento === "NOTA" ? "NOTA:1" : "RECIBO:1"
+      );
+      const doc = await tx.documento.create({
+        data: {
+          tipo: data.tipoDocumento,
+          numero: numeroDoc,
+          vendaId: venda.id,
+          cpfCnpj: data.cpfCnpj?.replace(/\D/g, "") || null,
+          nomeCliente: data.nomeCliente?.trim() || null,
+          emitidoPorId: usuarioId,
+        },
+      });
+      documentoId = doc.id;
+    }
+
+    return { vendaId: venda.id, numeroVenda, documentoId };
   });
 }
 
 const idSchema = z.string().cuid();
 const motivoSchema = z.string().min(1).max(500);
 
+/** Funcionário só mexe em documentos das próprias vendas; admin em todos. */
+function filtroDono(user: SessionUser) {
+  return user.role === "ADMIN" ? {} : { venda: { usuarioId: user.id } };
+}
+
 export async function marcarErroPdf(
   documentoId: string,
   motivo: string
 ): Promise<ActionResult> {
   return runAction("marcarErroPdf", async () => {
-    await requireActiveUser();
+    const user = await requireActiveUser();
     const id = idSchema.parse(documentoId);
-    const motivoSan = motivoSchema.parse(motivo).slice(0, 500);
+    const motivoSan = motivoSchema.parse(motivo);
 
-    await prisma.documento.update({
-      where: { id },
+    await prisma.documento.updateMany({
+      where: { id, ...filtroDono(user) },
       data: { statusDoc: "ERRO_PDF", erroInfo: motivoSan },
     });
   });
@@ -207,11 +190,11 @@ export async function marcarErroPdf(
 
 export async function marcarPdfOk(documentoId: string): Promise<ActionResult> {
   return runAction("marcarPdfOk", async () => {
-    await requireActiveUser();
+    const user = await requireActiveUser();
     const id = idSchema.parse(documentoId);
 
-    await prisma.documento.update({
-      where: { id },
+    await prisma.documento.updateMany({
+      where: { id, ...filtroDono(user) },
       data: { statusDoc: "EMITIDO", erroInfo: null },
     });
     revalidatePath("/notas");
@@ -225,30 +208,25 @@ export async function emitirNotaFiscal(
     const user = await requireAdmin();
     const id = idSchema.parse(documentoId);
 
-    await prisma.$transaction(
-      async (tx) => {
-        const doc = await tx.documento.findUniqueOrThrow({ where: { id } });
-        if (doc.tipo === "NOTA") {
-          throw new Error("Este documento já é uma Nota Fiscal.");
-        }
-        const novoNumero = await proximoNumero(
-          tx as Parameters<typeof proximoNumero>[0],
-          "NOTA:1"
-        );
-        await tx.documento.update({
-          where: { id },
-          data: {
-            tipo: "NOTA",
-            numero: novoNumero,
-            statusDoc: "EMITIDO",
-            erroInfo: null,
-            reemitidoEm: new Date(),
-            emitidoPorId: user.id,
-          },
-        });
-      },
-      { isolationLevel: "Serializable" }
-    );
+    await transacaoSerializavel(async (tx) => {
+      const doc = await tx.documento.findUniqueOrThrow({ where: { id } });
+      if (doc.tipo === "NOTA") {
+        throw new Error("Este documento já é uma nota.");
+      }
+      // Número de recibo antigo fica "pulado" — aceitável: documento não é fiscal.
+      const novoNumero = await proximoNumero(tx, "NOTA:1");
+      await tx.documento.update({
+        where: { id },
+        data: {
+          tipo: "NOTA",
+          numero: novoNumero,
+          statusDoc: "EMITIDO",
+          erroInfo: null,
+          reemitidoEm: new Date(),
+          emitidoPorId: user.id,
+        },
+      });
+    });
 
     revalidatePath("/notas");
     return { id };
@@ -260,82 +238,84 @@ export async function cancelarVenda(vendaId: string): Promise<ActionResult> {
     const user = await requireAdmin();
     const id = idSchema.parse(vendaId);
 
-    await prisma.$transaction(
-      async (tx) => {
-        const venda = await tx.venda.findUnique({
-          where: { id },
-          include: { itens: true },
-        });
-        if (!venda) throw new Error("Venda não encontrada.");
-        if (venda.status === "CANCELADA") throw new Error("Venda já foi cancelada.");
+    await transacaoSerializavel(async (tx) => {
+      const venda = await tx.venda.findUnique({
+        where: { id },
+        include: { itens: true },
+      });
+      if (!venda) throw new Error("Venda não encontrada.");
+      if (venda.status === "CANCELADA") throw new Error("Esta venda já foi cancelada.");
 
-        if (venda.descontouEstoque && venda.itens.length > 0) {
-          const produtoIds = Array.from(new Set(venda.itens.map((i) => i.produtoId)));
-          const produtos = await tx.produto.findMany({ where: { id: { in: produtoIds } } });
-          const produtoMap = new Map(produtos.map((p) => [p.id, p]));
+      if (venda.descontouEstoque && venda.itens.length > 0) {
+        const produtoIds = Array.from(new Set(venda.itens.map((i) => i.produtoId)));
+        const produtos = await tx.produto.findMany({ where: { id: { in: produtoIds } } });
+        const produtoMap = new Map(produtos.map((p) => [p.id, p]));
 
-          // Calcula novos saldos por produto agregando todos os itens da venda
-          const ajustes = new Map<string, { quantidade: number; saldoFracionado: number }>();
-          for (const item of venda.itens) {
-            const produto = produtoMap.get(item.produtoId);
-            if (!produto) continue;
-
-            const atual = ajustes.get(item.produtoId) ?? {
-              quantidade: Number(produto.quantidade),
-              saldoFracionado: Number(produto.saldoFracionado),
-            };
-
-            const novaQtd = atual.quantidade + Number(item.unidadesFechadasConsumidas);
-            const pesoUnidade =
-              produto.podeFracionar && produto.pesoUnidade ? Number(produto.pesoUnidade) : 0;
-            const fracaoAcumulada =
-              pesoUnidade > 0
-                ? Number(item.quantidade) -
-                  Number(item.unidadesFechadasConsumidas) * pesoUnidade
-                : 0;
-            const novoSaldo = Math.max(0, atual.saldoFracionado - fracaoAcumulada);
-
-            ajustes.set(item.produtoId, {
-              quantidade: novaQtd,
-              saldoFracionado: novoSaldo,
-            });
-          }
-
-          // Aplica updates em paralelo
-          await Promise.all(
-            Array.from(ajustes.entries()).map(([produtoId, vals]) =>
-              tx.produto.update({
-                where: { id: produtoId },
-                data: {
-                  quantidade: vals.quantidade.toFixed(4),
-                  saldoFracionado: vals.saldoFracionado.toFixed(4),
-                },
-              })
-            )
+        // Estado corrente por produto: itens repetidos são revertidos em sequência.
+        const estado = new Map(
+          produtos.map((p) => [
+            p.id,
+            { quantidade: String(p.quantidade), saldoFracionado: String(p.saldoFracionado) },
+          ])
+        );
+        const saldosApos: string[] = [];
+        for (const item of venda.itens) {
+          const produto = produtoMap.get(item.produtoId)!;
+          const r = reverterFracionamento(
+            {
+              podeFracionar: produto.podeFracionar,
+              pesoUnidade: produto.pesoUnidade ? String(produto.pesoUnidade) : null,
+              ...estado.get(item.produtoId)!,
+            },
+            {
+              quantidade: String(item.quantidade),
+              unidadesFechadasConsumidas: String(item.unidadesFechadasConsumidas),
+              vendaInteira: ehVendaInteira(produto, item.unidadeVenda),
+            }
           );
-
-          await tx.movimentoEstoque.createMany({
-            data: venda.itens.map((item) => {
-              const ajuste = ajustes.get(item.produtoId)!;
-              return {
-                produtoId: item.produtoId,
-                tipo: "CANCELAMENTO_VENDA" as const,
-                quantidade: String(item.quantidade),
-                saldoApos: ajuste.quantidade.toFixed(4),
-                referenciaId: id,
-                observacao: `Cancelamento venda #${venda.numero}`,
-                usuarioId: user.id,
-              };
-            }),
+          estado.set(item.produtoId, {
+            quantidade: r.novaQuantidade.toString(),
+            saldoFracionado: r.novoSaldoFracionado.toString(),
           });
+          saldosApos.push(r.novaQuantidade.toFixed(4));
         }
 
-        await tx.venda.update({ where: { id }, data: { status: "CANCELADA" } });
-      },
-      { isolationLevel: "Serializable", timeout: 30000, maxWait: 10000 }
-    );
+        await Promise.all(
+          produtoIds.map((pid) => {
+            const e = estado.get(pid)!;
+            return tx.produto.update({
+              where: { id: pid },
+              data: {
+                quantidade: new Decimal(e.quantidade).toFixed(4),
+                saldoFracionado: new Decimal(e.saldoFracionado).toFixed(4),
+              },
+            });
+          })
+        );
+
+        await tx.movimentoEstoque.createMany({
+          data: venda.itens.map((item, i) => ({
+            produtoId: item.produtoId,
+            tipo: "CANCELAMENTO_VENDA" as const,
+            quantidade: String(item.quantidade),
+            saldoApos: saldosApos[i],
+            referenciaId: id,
+            observacao: `Cancelamento venda #${venda.numero} (${item.unidadeVenda})`,
+            usuarioId: user.id,
+          })),
+        });
+      }
+
+      // updateMany com status no where: segundo cancelamento simultâneo não passa.
+      const { count } = await tx.venda.updateMany({
+        where: { id, status: "CONCLUIDA" },
+        data: { status: "CANCELADA" },
+      });
+      if (count !== 1) throw new Error("Esta venda já foi cancelada.");
+    });
 
     revalidatePath("/vendas/historico");
+    revalidateTag("dashboard");
   });
 }
 
@@ -364,14 +344,12 @@ export async function buscarVendas(
 
   let createdAtFilter: { gte?: Date; lt?: Date } | undefined;
   if (filtros.periodo && filtros.periodo !== "todos") {
-    const now = new Date();
-    const hoje = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     if (filtros.periodo === "hoje") {
-      createdAtFilter = { gte: hoje, lt: new Date(hoje.getTime() + 86400000) };
+      createdAtFilter = { gte: inicioDoDiaSP(), lt: inicioDoDiaSP(new Date(), 1) };
     } else if (filtros.periodo === "7d") {
-      createdAtFilter = { gte: new Date(hoje.getTime() - 6 * 86400000) };
+      createdAtFilter = { gte: inicioDoDiaSP(new Date(), -6) };
     } else if (filtros.periodo === "30d") {
-      createdAtFilter = { gte: new Date(hoje.getTime() - 29 * 86400000) };
+      createdAtFilter = { gte: inicioDoDiaSP(new Date(), -29) };
     }
   }
 

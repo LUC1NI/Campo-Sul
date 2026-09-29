@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { parseDecimalBR } from "@/lib/venda-calculo";
 import { ajustarEstoque } from "@/app/actions/produtos";
 import { formatarQuantidade } from "@/lib/format";
 import { Unidade } from "@prisma/client";
@@ -36,7 +37,7 @@ export function AjusteEstoque({
   const [isPending, startTransition] = useTransition();
 
   const qtdAtualFormatada = formatarQuantidade(quantidadeAtual, unidade, podeFracionar);
-  const novaQtdNum = parseFloat(novaQuantidade.replace(",", "."));
+  const novaQtdNum = parseDecimalBR(novaQuantidade);
   const diff = isNaN(novaQtdNum) ? 0 : novaQtdNum - quantidadeAtual;
   const temAlteracao = !isNaN(novaQtdNum) && Math.abs(diff) > 0.0001;
 

@@ -1,15 +1,12 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { prisma, transacaoSerializavel } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Unidade } from "@prisma/client";
 import { parseNfeXml } from "@/lib/nfe-xml-parser";
-import {
-  requireActiveUser,
-  requireAdmin,
-  runAction,
-} from "@/lib/auth-helpers";
+import { Decimal } from "decimal.js";
+import { requireAdmin, runAction } from "@/lib/auth-helpers";
 
 function mapUnidade(uCom: string): Unidade {
   const u = uCom.toUpperCase().trim();
@@ -19,6 +16,11 @@ function mapUnidade(uCom: string): Unidade {
   if (["CX", "CX.", "CAIXA", "CAIXAS"].includes(u)) return "CX";
   if (["M", "MT", "METRO", "METROS"].includes(u)) return "M";
   return "UN";
+}
+
+/** Grama/mililitro viram KG/L: quantidade ÷1000 e preço unitário ×1000. */
+function fatorConversao(uCom: string): number {
+  return ["GR", "G", "GRAMA", "GRAMAS", "ML"].includes(uCom.toUpperCase().trim()) ? 1000 : 1;
 }
 
 export interface ItemPreview {
@@ -48,7 +50,7 @@ const MAX_XML_BYTES = 5 * 1024 * 1024; // 5 MB
 export async function parsearXml(
   xmlContent: string
 ): Promise<{ ok: true; data: XmlPreview } | { ok: false; erro: string }> {
-  await requireActiveUser();
+  await requireAdmin();
 
   if (typeof xmlContent !== "string" || xmlContent.length === 0) {
     return { ok: false, erro: "XML vazio" };
@@ -72,7 +74,9 @@ export async function parsearXml(
 
     const matches = gtinsValidos.length
       ? await prisma.produto.findMany({
-          where: { gtin: { in: gtinsValidos }, ativo: true },
+          // Sem filtro de ativo: produto desativado com o mesmo GTIN é reaproveitado
+          // (e reativado na confirmação) em vez de quebrar a importação por GTIN duplicado.
+          where: { gtin: { in: gtinsValidos }, deletedAt: null },
           select: { id: true, nome: true, gtin: true },
         })
       : [];
@@ -80,12 +84,13 @@ export async function parsearXml(
 
     const itens: ItemPreview[] = parsed.itens.map((item) => {
       const match = item.gtin ? matchMap.get(item.gtin) : null;
+      const fator = fatorConversao(item.unidadeComercial);
       return {
         gtin: item.gtin,
         descricao: item.descricao,
         unidadeNfe: item.unidadeComercial,
-        quantidade: item.quantidade,
-        valorUnitario: item.valorUnitario,
+        quantidade: new Decimal(item.quantidade).div(fator).toFixed(4),
+        valorUnitario: new Decimal(item.valorUnitario).times(fator).toFixed(4),
         valorTotal: item.valorTotal,
         produtoId: match?.id ?? null,
         produtoNome: match?.nome ?? null,
@@ -114,17 +119,19 @@ export async function parsearXml(
   }
 }
 
+const decimalPositivo = z.string().max(20).regex(/^\d+(\.\d+)?$/, "Valor numérico inválido");
+
 const itemConfirmSchema = z.object({
-  gtin: z.string().nullable(),
+  gtin: z.string().max(14).nullable(),
   descricao: z.string().min(1).max(300),
   unidadeNfe: z.string().max(20),
-  quantidade: z.string(),
-  valorUnitario: z.string(),
-  valorTotal: z.string(),
-  produtoId: z.string().nullable(),
+  quantidade: decimalPositivo,
+  valorUnitario: decimalPositivo,
+  valorTotal: decimalPositivo,
+  produtoId: z.string().cuid().nullable(),
   unidadeMapeada: z.nativeEnum(Unidade),
-  precoVenda: z.string().optional(),
-  categoriaId: z.string().nullable().optional(),
+  precoVenda: decimalPositivo.optional(),
+  categoriaId: z.string().cuid().nullable().optional(),
 });
 
 const confirmarSchema = z.object({
@@ -132,7 +139,7 @@ const confirmarSchema = z.object({
   numeroNf: z.string().max(20),
   cnpjEmitente: z.string().max(20),
   nomeEmitente: z.string().max(200),
-  valorTotal: z.string().max(20),
+  valorTotal: decimalPositivo,
   xmlOriginal: z.string().max(MAX_XML_BYTES),
   itens: z.array(itemConfirmSchema).min(1).max(500),
 });
@@ -152,7 +159,7 @@ export async function confirmarImportacaoXml(
     });
     if (existente) throw new Error("Esta NF-e já foi importada anteriormente.");
 
-    const { novos, atualizados } = await prisma.$transaction(
+    const { novos, atualizados } = await transacaoSerializavel(
       async (tx) => {
         const entrada = await tx.entradaXml.create({
           data: {
@@ -170,9 +177,16 @@ export async function confirmarImportacaoXml(
         // O Prisma createMany não retorna IDs, então criamos um a um (mas em
         // paralelo — não bloqueia entre si). Para preço unitário/categoria
         // diferentes por item, esta é a forma correta.
+        // Mesmo GTIN repetido em itens novos da NF cria o produto uma vez só.
+        const primeiroIdxPorGtin = new Map<string, number>();
+        data.itens.forEach((item, idx) => {
+          if (!item.produtoId && item.gtin && !primeiroIdxPorGtin.has(item.gtin)) {
+            primeiroIdxPorGtin.set(item.gtin, idx);
+          }
+        });
         const novosItens = data.itens
           .map((item, idx) => ({ item, idx }))
-          .filter(({ item }) => !item.produtoId);
+          .filter(({ item, idx }) => !item.produtoId && (!item.gtin || primeiroIdxPorGtin.get(item.gtin) === idx));
 
         const idsNovos = await Promise.all(
           novosItens.map(async ({ item, idx }) => {
@@ -199,9 +213,20 @@ export async function confirmarImportacaoXml(
         // --- 2. Resolve produtoId final + busca estoque atual de TODOS de uma vez ---
         const itensComProduto = data.itens.map((item, idx) => ({
           ...item,
-          produtoId: item.produtoId ?? novoIdPorIdx.get(idx)!,
-          criouProduto: !item.produtoId,
+          produtoId:
+            item.produtoId ??
+            novoIdPorIdx.get(item.gtin ? primeiroIdxPorGtin.get(item.gtin)! : idx)!,
+          criouProduto: novoIdPorIdx.has(idx),
         }));
+
+        // Produto existente que estava desativado volta a ficar ativo ao receber estoque.
+        const existentes = data.itens.map((i) => i.produtoId).filter((id): id is string => !!id);
+        if (existentes.length) {
+          await tx.produto.updateMany({
+            where: { id: { in: existentes }, ativo: false },
+            data: { ativo: true },
+          });
+        }
 
         const produtoIdsTodos = itensComProduto.map((i) => i.produtoId);
         const produtosAtuais = await tx.produto.findMany({
@@ -209,15 +234,15 @@ export async function confirmarImportacaoXml(
           select: { id: true, quantidade: true },
         });
         const qtdAtualPorId = new Map(
-          produtosAtuais.map((p) => [p.id, Number(p.quantidade)])
+          produtosAtuais.map((p) => [p.id, new Decimal(String(p.quantidade))])
         );
 
         // --- 3. Calcula novas quantidades agregadas (caso o mesmo produto
         //     apareça em vários itens da NF-e, soma todas) ---
-        const ajustePorProduto = new Map<string, number>();
+        const ajustePorProduto = new Map<string, Decimal>();
         for (const it of itensComProduto) {
-          const atual = ajustePorProduto.get(it.produtoId) ?? qtdAtualPorId.get(it.produtoId) ?? 0;
-          ajustePorProduto.set(it.produtoId, atual + Number(it.quantidade));
+          const atual = ajustePorProduto.get(it.produtoId) ?? qtdAtualPorId.get(it.produtoId) ?? new Decimal(0);
+          ajustePorProduto.set(it.produtoId, atual.plus(it.quantidade));
         }
 
         // --- 4. Atualiza saldos em paralelo ---
@@ -265,8 +290,7 @@ export async function confirmarImportacaoXml(
         const novosCount = idsNovos.length;
         const atualizadosCount = data.itens.length - novosCount;
         return { novos: novosCount, atualizados: atualizadosCount };
-      },
-      { isolationLevel: "Serializable", timeout: 30000, maxWait: 10000 }
+      }
     );
 
     revalidatePath("/estoque");

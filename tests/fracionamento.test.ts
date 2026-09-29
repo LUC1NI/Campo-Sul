@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   calcularFracionamento,
   calcularQuantidadePorValor,
+  reverterFracionamento,
+  type ProdutoFracionamento,
 } from "@/lib/fracionamento";
 
 const sacoRacao = {
@@ -95,5 +97,47 @@ describe("calcularQuantidadePorValor", () => {
 
   it("lança erro com preço zero", () => {
     expect(() => calcularQuantidadePorValor("10", "0")).toThrow();
+  });
+});
+
+describe("venda inteira de produto fracionável (bug: 1 SACO virava 1 kg)", () => {
+  it("vender 1 saco inteiro desconta 1 unidade, sem mexer no saldo aberto", () => {
+    const r = calcularFracionamento({ ...sacoRacao, saldoFracionado: "7" }, "1", true);
+    expect(r.novaQuantidade.toNumber()).toBe(3);
+    expect(r.novoSaldoFracionado.toNumber()).toBe(7);
+    expect(r.unidadesFechadasConsumidas.toNumber()).toBe(1);
+  });
+});
+
+describe("reverterFracionamento (cancelamento)", () => {
+  const vender = (p: ProdutoFracionamento, qtd: string, inteira = false) => {
+    const r = calcularFracionamento(p, qtd, inteira);
+    return {
+      produto: { ...p, quantidade: r.novaQuantidade.toString(), saldoFracionado: r.novoSaldoFracionado.toString() },
+      item: { quantidade: qtd, unidadesFechadasConsumidas: r.unidadesFechadasConsumidas.toString(), vendaInteira: inteira },
+    };
+  };
+  const cancelar = (p: ProdutoFracionamento, item: Parameters<typeof reverterFracionamento>[1]) => {
+    const r = reverterFracionamento(p, item);
+    return { ...p, quantidade: r.novaQuantidade.toString(), saldoFracionado: r.novoSaldoFracionado.toString() };
+  };
+
+  it("vende 10kg, vende 20kg, cancela a de 10kg → 4 sacos e 20kg abertos (sem perder fração)", () => {
+    const a = vender(sacoRacao, "10");
+    const b = vender(a.produto, "20");
+    const final = cancelar(b.produto, a.item);
+    expect(Number(final.quantidade)).toBe(4);
+    expect(Number(final.saldoFracionado)).toBe(20);
+  });
+
+  it("vender e cancelar é identidade (fracionado, inteiro e unitário)", () => {
+    for (const [qtd, inteira] of [["7", false], ["30", false], ["2", true]] as const) {
+      const v = vender({ ...sacoRacao, saldoFracionado: "12" }, qtd, inteira);
+      const f = cancelar(v.produto, v.item);
+      expect(Number(f.quantidade)).toBe(4);
+      expect(Number(f.saldoFracionado)).toBe(12);
+    }
+    const u = vender(produtoUn, "3");
+    expect(Number(cancelar(u.produto, u.item).quantidade)).toBe(10);
   });
 });

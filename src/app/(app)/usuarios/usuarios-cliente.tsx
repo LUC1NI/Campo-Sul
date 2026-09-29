@@ -26,7 +26,7 @@ const baseSchema = z.object({
 });
 
 const criarSchema = baseSchema.extend({
-  senha: z.string().min(6, "Mínimo 6 caracteres"),
+  senha: z.string().min(8, "Mínimo 8 caracteres"),
 });
 
 const editarSchema = baseSchema.extend({
@@ -255,7 +255,7 @@ export function UsuariosCliente({ usuarios, currentUserId }: Props) {
                       {...formCriar.register("senha")}
                       type="password"
                       className={inputCls}
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder="Mínimo 8 caracteres"
                     />
                   </Field>
 

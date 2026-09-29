@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { prisma, transacaoSerializavel } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Role } from "@prisma/client";
@@ -27,10 +27,16 @@ export async function listarUsuarios() {
   });
 }
 
+// bcrypt ignora o que passa de 72 BYTES (acentos contam 2) — rejeita em vez de truncar.
+const senhaSchema = z
+  .string()
+  .min(8, "A senha precisa ter pelo menos 8 caracteres")
+  .refine((v) => new TextEncoder().encode(v).length <= 72, "Senha longa demais");
+
 const criarSchema = z.object({
   nome: z.string().min(2, "Nome obrigatório").max(120),
   email: z.string().email("E-mail inválido").toLowerCase().max(200),
-  senha: z.string().min(6, "Mínimo 6 caracteres").max(72), // bcrypt limita a 72 bytes
+  senha: senhaSchema,
   role: z.nativeEnum(Role),
 });
 
@@ -67,7 +73,7 @@ const editarSchema = z.object({
   email: z.string().email("E-mail inválido").toLowerCase().max(200),
   role: z.nativeEnum(Role),
   ativo: z.boolean(),
-  novaSenha: z.string().min(6).max(72).optional().or(z.literal("")),
+  novaSenha: senhaSchema.optional().or(z.literal("")),
 });
 
 export async function atualizarUsuario(
@@ -77,6 +83,7 @@ export async function atualizarUsuario(
   return runAction("atualizarUsuario", async () => {
     const currentUser = await requireAdmin();
     const parsed = editarSchema.parse(data);
+    z.string().cuid().parse(id);
 
     if (id === currentUser.id) {
       if (!parsed.ativo) throw new Error("Você não pode desativar sua própria conta.");
@@ -103,11 +110,17 @@ export async function atualizarUsuario(
       ativo: parsed.ativo,
     };
 
-    if (parsed.novaSenha && parsed.novaSenha.length >= 6) {
+    if (parsed.novaSenha) {
       updateData.senhaHash = await bcrypt.hash(parsed.novaSenha, 12);
     }
 
-    await prisma.usuario.update({ where: { id }, data: updateData });
+    // Nunca deixar o sistema sem admin ativo (ex: dois admins rebaixando um ao outro).
+    // Atualizar o usuário também invalida as sessões dele (ver callback jwt em lib/auth.ts).
+    await transacaoSerializavel(async (tx) => {
+      await tx.usuario.update({ where: { id }, data: updateData });
+      const admins = await tx.usuario.count({ where: { role: "ADMIN", ativo: true } });
+      if (admins === 0) throw new Error("O sistema precisa de pelo menos um administrador ativo.");
+    });
 
     revalidatePath("/usuarios");
   });

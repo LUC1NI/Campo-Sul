@@ -7,7 +7,7 @@ import { Carrinho } from "./carrinho";
 import { PainelPagamento, PainelPagamentoHandle } from "./painel-pagamento";
 import { finalizarVenda, marcarErroPdf, FinalizarVendaInput } from "@/app/actions/vendas";
 import { toast } from "sonner";
-import { TipoDocumento } from "@prisma/client";
+type TipoDocumento = "NOTA" | "RECIBO";
 import { DialogFinalizacao } from "./dialog-finalizacao";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -18,6 +18,8 @@ export function PDV() {
   const [dialogAberto, setDialogAberto] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [confirmarLimpar, setConfirmarLimpar] = useState(false);
+  const finalizandoRef = useRef(false);
+  finalizandoRef.current = finalizando;
 
   // Atalho F2 → foco na busca
   useEffect(() => {
@@ -34,13 +36,14 @@ export function PDV() {
         e.preventDefault();
         setDialogAberto(true);
       }
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !finalizandoRef.current) {
         setDialogAberto(false);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [carrinho.itens.length]);
+
 
   const handleFinalizar = useCallback(
     async (tipoDocumento?: TipoDocumento, cpfCnpj?: string, nomeCliente?: string) => {
@@ -60,8 +63,6 @@ export function PDV() {
             produtoId: item.produtoId,
             unidadeVenda: item.unidade,
             quantidade: item.quantidade,
-            precoUnitario: item.precoUnitario,
-            desconto: 0,
           })),
           pagamentos: carrinho.pagamentos.map((p) => ({
             metodo: p.metodo,
@@ -71,6 +72,7 @@ export function PDV() {
           tipoDocumento,
           cpfCnpj,
           nomeCliente,
+          chaveIdempotencia: carrinho.chaveVenda,
         };
 
         const r = await finalizarVenda(input);
@@ -88,8 +90,14 @@ export function PDV() {
             if (res.ok) {
               const blob = await res.blob();
               const url = URL.createObjectURL(blob);
-              window.open(url, "_blank");
-              setTimeout(() => URL.revokeObjectURL(url), 60_000);
+              const janela = window.open(url, "_blank");
+              if (!janela) {
+                toast.info("O navegador bloqueou a janela do PDF.", {
+                  action: { label: "Abrir PDF", onClick: () => window.open(url, "_blank") },
+                  duration: 20_000,
+                });
+              }
+              setTimeout(() => URL.revokeObjectURL(url), 120_000);
             } else {
               await marcarErroPdf(resultado.documentoId, `HTTP ${res.status}`);
               toast.warning("Venda salva! O PDF não pôde ser gerado — acesse Notas para reemitir.");
@@ -151,12 +159,13 @@ export function PDV() {
         </div>
       </div>
 
-      <DialogFinalizacao
-        aberto={dialogAberto}
+      {/* Montado só quando aberto: cada venda começa sem CPF/nome da anterior */}
+      {dialogAberto && <DialogFinalizacao
+        aberto
         onFechar={() => setDialogAberto(false)}
         onConfirmar={handleFinalizar}
         finalizando={finalizando}
-      />
+      />}
 
       <ConfirmDialog
         aberto={confirmarLimpar}

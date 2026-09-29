@@ -11,7 +11,7 @@ import Link from "next/link";
 
 const schema = z.object({
   email: z.string().email("E-mail inválido"),
-  password: z.string().min(6, "Mínimo 6 caracteres"),
+  password: z.string().min(1, "Informe a senha"),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -37,7 +37,7 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setErro("E-mail ou senha incorretos.");
+        setErro("E-mail ou senha incorretos. Após 5 tentativas erradas, o acesso fica bloqueado por 15 minutos.");
       } else if (result?.ok) {
         router.push("/dashboard");
         router.refresh();

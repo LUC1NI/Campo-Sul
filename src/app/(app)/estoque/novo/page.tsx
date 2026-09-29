@@ -1,7 +1,9 @@
+import { requireAdminPage } from "@/lib/auth-helpers";
 import { listarCategorias } from "@/app/actions/produtos";
 import { NovoProdutoForm } from "./_novo-produto-form";
 
 export default async function NovoProdutoPage() {
+  await requireAdminPage();
   const categorias = await listarCategorias();
 
   return (

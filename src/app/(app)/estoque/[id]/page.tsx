@@ -1,3 +1,4 @@
+import { requireAdminPage } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { listarCategorias } from "@/app/actions/produtos";
 import { EditarProdutoForm } from "./_editar-produto-form";
@@ -9,6 +10,7 @@ export default async function EditarProdutoPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAdminPage();
   const { id } = await params;
 
   const [produto, categorias] = await Promise.all([

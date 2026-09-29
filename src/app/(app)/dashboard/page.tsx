@@ -1,9 +1,11 @@
 export const dynamic = "force-dynamic";
+import { requireActiveUser } from "@/lib/auth-helpers";
 
 import { Suspense } from "react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { formatBRL, formatData, formatDataHora } from "@/lib/format";
+import { produtosAbaixoDoMinimo } from "@/lib/estoque-baixo";
+import { formatBRL, formatData, formatDataHora, inicioDoDiaSP } from "@/lib/format";
 import {
   ShoppingCart, TrendingUp, AlertOctagon,
   DollarSign, ArrowUp, ArrowDown, Minus,
@@ -20,10 +22,9 @@ const getDashboardData = unstable_cache(
 );
 
 async function getDashboardDataRaw() {
-  const now = new Date();
-  const inicioHoje = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const fimHoje = new Date(inicioHoje.getTime() + 86400000);
-  const inicioOntem = new Date(inicioHoje.getTime() - 86400000);
+  const inicioHoje = inicioDoDiaSP();
+  const fimHoje = inicioDoDiaSP(new Date(), 1);
+  const inicioOntem = inicioDoDiaSP(new Date(), -1);
 
   const [
     vendasHoje, totalHojeAgg,
@@ -55,12 +56,7 @@ async function getDashboardDataRaw() {
       orderBy: { _sum: { quantidade: "desc" } },
       take: 5,
     }),
-    prisma.produto.findMany({
-      where: { ativo: true, deletedAt: null, quantidadeMinima: { gt: 0 } },
-      select: { id: true, nome: true, quantidade: true, quantidadeMinima: true, unidade: true },
-      orderBy: { nome: "asc" },
-      take: 50,
-    }),
+    produtosAbaixoDoMinimo(8),
     prisma.produto.findMany({
       where: { ativo: true, deletedAt: null, quantidade: { lt: 0 } },
       select: { id: true, nome: true, quantidade: true, unidade: true },
@@ -80,22 +76,7 @@ async function getDashboardDataRaw() {
     total_val: String(p._sum.total ?? 0),
   }));
 
-  // Filtra em JS os que estão abaixo do mínimo (coluna-a-coluna não suportado pelo ORM)
-  const estoqueCriticoFilt = estoqueCritico
-    .filter((p) => Number(p.quantidade) <= Number(p.quantidadeMinima))
-    .sort((a, b) => {
-      const ratioA = Number(a.quantidade) / (Number(a.quantidadeMinima) || 1);
-      const ratioB = Number(b.quantidade) / (Number(b.quantidadeMinima) || 1);
-      return ratioA - ratioB;
-    })
-    .slice(0, 8)
-    .map((p) => ({
-      id: p.id,
-      nome: p.nome,
-      quantidade: String(p.quantidade),
-      quantidadeMinima: String(p.quantidadeMinima),
-      unidade: String(p.unidade),
-    }));
+  const estoqueCriticoFilt = estoqueCritico;
 
   const estoqueNegativoNorm = estoqueNegativo.map((p) => ({
     id: p.id,
@@ -463,6 +444,7 @@ async function DashboardContent() {
 }
 
 export default async function DashboardPage() {
+  await requireActiveUser();
   return (
       <Suspense fallback={<DashboardSkeleton />}>
         <DashboardContent />

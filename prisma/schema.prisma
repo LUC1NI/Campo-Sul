@@ -132,6 +132,9 @@ model Venda {
 
   descontouEstoque Boolean @default(true)
 
+  // UUID gerado pelo carrinho — impede venda duplicada (duplo clique / resposta perdida)
+  chaveIdempotencia String? @unique
+
   itens      ItemVenda[]
   pagamentos Pagamento[]
   documento  Documento?

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCarrinho } from "@/stores/carrinho-store";
+import { parseDecimalBR } from "@/lib/venda-calculo";
 import { Trash2, ShoppingCart, Plus, Minus } from "lucide-react";
 import { useState } from "react";
 
@@ -20,7 +21,7 @@ export function Carrinho() {
         <div className="text-center text-muted-foreground">
           <ShoppingCart className="w-10 h-10 mx-auto mb-2 opacity-20" />
           <p className="text-sm">Carrinho vazio</p>
-          <p className="text-xs opacity-60 mt-1">Busque um produto acima</p>
+          <p className="text-xs mt-1">Busque um produto acima</p>
         </div>
       </div>
     );
@@ -69,6 +70,7 @@ function ItemCarrinhoRow({
 }) {
   const [editandoValor, setEditandoValor] = useState(false);
   const [valorInput, setValorInput] = useState("");
+  const [qtdTexto, setQtdTexto] = useState<string | null>(null); // null = mostrando o valor da store
 
   const isFracionado = item.podeFracionar && item.unidade !== item.unidadeEstoque;
   const unidadePeso = item.unidade === "KG" || item.unidade === "L" || item.unidade === "M";
@@ -77,7 +79,7 @@ function ItemCarrinhoRow({
   // Preview ao vivo da quantidade calculada pelo valor digitado
   const previewQtd = (() => {
     if (!editandoValor || !valorInput) return null;
-    const valor = parseFloat(valorInput.replace(",", "."));
+    const valor = parseDecimalBR(valorInput);
     if (isNaN(valor) || valor <= 0 || item.precoUnitario <= 0) return null;
     try {
       return calcularQuantidadePorValor(valor, item.precoUnitario);
@@ -87,7 +89,7 @@ function ItemCarrinhoRow({
   })();
 
   function handleValorConfirm() {
-    const valor = parseFloat(valorInput.replace(",", "."));
+    const valor = parseDecimalBR(valorInput);
     if (!isNaN(valor) && valor > 0 && item.precoUnitario > 0) {
       try {
         const qtd = calcularQuantidadePorValor(valor, item.precoUnitario);
@@ -102,14 +104,23 @@ function ItemCarrinhoRow({
 
   const step = item.unidade === "KG" || item.unidade === "L" || item.unidade === "M" ? 0.1 : 1;
 
+  function commitQtd() {
+    if (qtdTexto === null) return;
+    const q = parseDecimalBR(qtdTexto);
+    if (!isNaN(q) && q > 0) onAtualizarQtd(Number(q.toFixed(4)));
+    setQtdTexto(null);
+  }
+  const btnQtd =
+    "w-9 h-9 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+
   return (
     <div className="px-4 py-3 flex items-start gap-3">
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{item.nome}</p>
         <p className="text-xs text-muted-foreground">
           R$ {item.precoUnitario.toFixed(2).replace(".", ",")} / {UNIDADE_LABEL[item.unidade]}
-          {isFracionado && <span className="ml-1 text-terra/70">• fracionado</span>}
-          {!isFracionado && item.podeFracionar && <span className="ml-1 text-verde-claro/70">• inteiro</span>}
+          {isFracionado && <span className="ml-1 text-terra">• fracionado</span>}
+          {!isFracionado && item.podeFracionar && <span className="ml-1 text-verde-mata">• inteiro</span>}
         </p>
         {item.valorDigitado != null && (
           <p className="text-xs mt-0.5">
@@ -124,32 +135,40 @@ function ItemCarrinhoRow({
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <button
               onClick={() => onAtualizarQtd(Number((item.quantidade - step).toFixed(4)))}
-              className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors"
+              disabled={item.quantidade - step <= 0}
+              aria-label={`Diminuir quantidade de ${item.nome}`}
+              className={btnQtd}
             >
-              <Minus className="w-3 h-3" />
+              <Minus className="w-4 h-4" />
             </button>
 
             <input
-              type="number"
-              value={item.quantidade}
-              step={step}
-              min={step}
-              onChange={(e) => onAtualizarQtd(parseFloat(e.target.value) || step)}
-              className="w-16 text-center text-sm border border-border rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-verde-mata"
+              type="text"
+              inputMode="decimal"
+              aria-label={`Quantidade de ${item.nome}`}
+              value={qtdTexto ?? String(item.quantidade).replace(".", ",")}
+              onChange={(e) => setQtdTexto(e.target.value)}
+              onBlur={commitQtd}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitQtd();
+                if (e.key === "Escape") setQtdTexto(null);
+              }}
+              className="w-20 h-9 text-center text-sm border border-border rounded-lg px-1 focus:outline-none focus:ring-2 focus:ring-verde-mata/40"
             />
             <span className="text-xs text-muted-foreground">{UNIDADE_LABEL[item.unidade]}</span>
 
             <button
               onClick={() => onAtualizarQtd(Number((item.quantidade + step).toFixed(4)))}
-              className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors"
+              aria-label={`Aumentar quantidade de ${item.nome}`}
+              className={btnQtd}
             >
-              <Plus className="w-3 h-3" />
+              <Plus className="w-4 h-4" />
             </button>
 
             {podeDigitarReais && (
               <button
                 onClick={() => setEditandoValor(true)}
-                className="text-xs bg-terra/10 text-terra hover:bg-terra/20 px-2 py-0.5 rounded transition-colors ml-1"
+                className="text-xs bg-terra/10 text-terra hover:bg-terra/20 px-3 h-9 rounded-lg transition-colors ml-1"
               >
                 digitar R$
               </button>
@@ -174,7 +193,8 @@ function ItemCarrinhoRow({
               />
               <button
                 onClick={() => { setEditandoValor(false); setValorInput(""); }}
-                className="text-xs text-muted-foreground hover:text-foreground"
+                aria-label="Cancelar valor em reais"
+                className="p-2 text-xs text-muted-foreground hover:text-foreground"
               >
                 ✕
               </button>
@@ -198,9 +218,10 @@ function ItemCarrinhoRow({
         </p>
         <button
           onClick={onRemover}
-          className="text-destructive hover:opacity-70 transition-opacity mt-1"
+          aria-label={`Remover ${item.nome} do carrinho`}
+          className="text-destructive hover:bg-destructive/10 rounded-lg p-2 -mr-2 transition-colors mt-1"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-4 h-4" />
         </button>
       </div>
     </div>
