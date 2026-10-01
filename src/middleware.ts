@@ -49,7 +49,10 @@ export function middleware(request: NextRequest) {
   if (PROTEGIDAS.test(pathname) && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-  if (pathname === "/login" && isLoggedIn) {
+  // Cookie presente mas sessão inválida no servidor (usuário desativado/editado/removido):
+  // o layout manda pra cá com ?sessao=expirada. Sem isso, /login ↔ /dashboard viram loop.
+  const sessaoExpirada = pathname === "/login" && request.nextUrl.searchParams.get("sessao") === "expirada";
+  if (pathname === "/login" && isLoggedIn && !sessaoExpirada) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -59,6 +62,10 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
   response.headers.set("Content-Security-Policy", csp);
+  if (sessaoExpirada) {
+    response.cookies.delete("authjs.session-token");
+    response.cookies.set("__Secure-authjs.session-token", "", { maxAge: 0, path: "/", secure: true });
+  }
 
   return response;
 }

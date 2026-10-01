@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { LOGIN_SESSAO_EXPIRADA } from "@/lib/sessao";
 
 export type SessionUser = {
   id: string;
@@ -24,7 +25,7 @@ export function erroAction(erro: string): ActionError {
  */
 export async function requireActiveUser(): Promise<SessionUser> {
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) redirect(LOGIN_SESSAO_EXPIRADA);
   return session.user as SessionUser;
 }
 
