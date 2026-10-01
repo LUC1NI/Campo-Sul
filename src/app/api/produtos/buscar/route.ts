@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { melhorCodigoExato } from "@/lib/utils";
 import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -15,10 +16,16 @@ export async function GET(req: NextRequest) {
 
   // Match exato de código/EAN vem primeiro: o PDV usa isso para o leitor de
   // código de barras adicionar direto (ver busca-produto.tsx).
-  const [exato, produtos] = await Promise.all([
-    prisma.produto.findFirst({
-      where: { ativo: true, deletedAt: null, OR: [{ codigo: q }, { gtin: q }] },
+  const [exatos, produtos] = await Promise.all([
+    // Sem diferenciar maiúsculas: leitor com Caps Lock ligado manda "isca-07" para "ISCA-07".
+    prisma.produto.findMany({
+      where: {
+        ativo: true,
+        deletedAt: null,
+        OR: [{ codigo: { equals: q, mode: "insensitive" } }, { gtin: { equals: q, mode: "insensitive" } }],
+      },
       select: SELECT,
+      take: 5,
     }),
     prisma.produto.findMany({
       where: {
@@ -35,6 +42,7 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
+  const exato = melhorCodigoExato(exatos, q);
   const lista = exato
     ? [exato, ...produtos.filter((p) => p.id !== exato.id)].slice(0, 8)
     : produtos;

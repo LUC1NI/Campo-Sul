@@ -10,6 +10,7 @@ import { Unidade, Prisma } from "@prisma/client";
 import { BotaoDesativar } from "./_botao-desativar";
 import { BotaoReativar } from "./_botao-reativar";
 import { FiltrosEstoque } from "./_filtros-estoque";
+import { BarraEtiquetas, CheckEtiqueta } from "@/components/estoque/etiquetas";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -218,6 +219,12 @@ async function TabelaAtivos({ params, admin }: { params: PageParams; admin: bool
         <table className="w-full text-sm min-w-[640px]">
           <thead>
             <tr className="border-b border-border bg-muted/50">
+              <th className="w-10 pl-4 py-3">
+                <CheckEtiqueta
+                  itens={produtos.map((p) => ({ id: p.id, nome: p.nome }))}
+                  label="Selecionar todos desta página para etiqueta"
+                />
+              </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Produto</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Categoria</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Unidade</th>
@@ -228,7 +235,7 @@ async function TabelaAtivos({ params, admin }: { params: PageParams; admin: bool
           </thead>
           <tbody className="divide-y divide-border">
             {produtos.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
                 <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />Nenhum produto encontrado
               </td></tr>
             ) : (
@@ -237,6 +244,9 @@ async function TabelaAtivos({ params, admin }: { params: PageParams; admin: bool
                 const baixo = !negativo && Number(p.quantidade) <= Number(p.quantidadeMinima) && Number(p.quantidadeMinima) > 0;
                 return (
                   <tr key={p.id} className={`hover:bg-muted/30 transition-colors ${negativo ? "bg-red-50/40" : ""}`}>
+                    <td className="pl-4 py-3">
+                      <CheckEtiqueta itens={[{ id: p.id, nome: p.nome }]} label={`Selecionar ${p.nome} para etiqueta`} />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-foreground">{p.nome}</span>
@@ -283,6 +293,7 @@ async function TabelaAtivos({ params, admin }: { params: PageParams; admin: bool
         </table>
       </div>
       {paginas > 1 && <Paginacao pagina={pagina} paginas={paginas} buildHref={buildHref} />}
+      <BarraEtiquetas />
     </>
   );
 }

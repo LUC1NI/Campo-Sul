@@ -7,6 +7,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { DialogFracionado, ProdutoFracionadoInfo } from "./dialog-fracionado";
 import { toast } from "sonner";
 import { precoDeCatalogo } from "@/lib/venda-calculo";
+import { codigoBate } from "@/lib/utils";
 
 type Unidade = "UN" | "KG" | "L" | "SACO" | "CX" | "M";
 
@@ -300,4 +301,4 @@ async function buscar(q: string, signal?: AbortSignal): Promise<ProdutoBusca[]> 
   return r.json();
 }
 
-const ehExato = (p: ProdutoBusca, q: string) => p.codigo === q || p.gtin === q;
+const ehExato = codigoBate;

@@ -4,6 +4,7 @@ import { listarCategorias } from "@/app/actions/produtos";
 import { EditarProdutoForm } from "./_editar-produto-form";
 import { AjusteEstoque } from "./_ajuste-estoque";
 import { notFound } from "next/navigation";
+import { BotaoEtiqueta } from "@/components/estoque/etiquetas";
 
 export default async function EditarProdutoPage({
   params,
@@ -39,9 +40,12 @@ export default async function EditarProdutoPage({
 
   return (
       <div className="max-w-6xl mx-auto space-y-5">
-        <div>
-          <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Editar Produto</h1>
-          <p className="text-sm text-muted-foreground">{produto.nome}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="font-fraunces text-2xl font-bold text-verde-mata">Editar Produto</h1>
+            <p className="text-sm text-muted-foreground">{produto.nome}</p>
+          </div>
+          <BotaoEtiqueta produto={{ id: produto.id, nome: produto.nome }} />
         </div>
 
         <EditarProdutoForm
